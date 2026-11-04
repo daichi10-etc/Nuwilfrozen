@@ -1,1 +1,30 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Nuwil Management</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">NUWIL</div>
+    <nav>
+      <button data-page="dashboard" class="active">Dashboard</button>
+      <button data-page="inventory">Inventory</button>
+      <button data-page="purchases">Pembelian</button>
+      <button data-page="processing">Sorting / Processing</button>
+      <button data-page="production">Produksi</button>
+      <button data-page="supply">Supply Toka</button>
+      <button data-page="finance">Finance</button>
+      <button data-page="settings">Pengaturan</button>
+    </nav>
+  </aside>
+  <main>
+    <header><h1 id="pageTitle">Dashboard</h1><span id="status">Connecting...</span></header>
+    <section id="app"></section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
 
