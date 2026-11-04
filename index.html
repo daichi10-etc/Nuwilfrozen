@@ -21,10 +21,6 @@
 @media(max-width:1050px){.sidebar{width:210px}.content{margin-left:210px;width:calc(100% - 210px)}.cards{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.top-right .user{display:none}}@media(max-width:700px){.sidebar{position:fixed;transform:translateX(-100%);transition:.2s;width:245px}.sidebar.open{transform:none}.content{margin-left:0;width:100%}.topbar{padding:0 16px}.mobile{display:block!important}.main{padding:20px 14px 40px}.heading{align-items:flex-start}.date{display:none}.cards{grid-template-columns:1fr}.hero-logo{display:none}.quick{grid-template-columns:1fr}.toolbar{flex-direction:column;align-items:stretch}.search{width:100%}.form{grid-template-columns:1fr}.field.full{grid-column:auto}}.mobile{display:none;border:0;background:#e9f7f0;color:var(--charcoal);border-radius:9px;padding:8px 10px;font-size:16px}
 </style>
 <style>
-.prod-tabs{display:flex;gap:8px;flex-wrap:wrap}.prod-tab{border:1px solid var(--line);background:#fff;padding:10px 14px;border-radius:10px;font-weight:700;color:var(--muted);cursor:pointer}.prod-tab.active{background:var(--charcoal);color:#fff;border-color:var(--charcoal)}.prod-layout{display:grid;grid-template-columns:1.25fr .9fr;gap:16px}.prod-section{padding:18px}.prod-section+.prod-section{border-top:1px solid var(--line)}.section-title{font-weight:800;font-size:15px}.section-sub{font-size:12px;color:var(--muted);margin-top:3px}.prod-row{display:grid;grid-template-columns:1.4fr .7fr .7fr 38px;gap:8px;align-items:end;margin-top:10px}.prod-row.output{grid-template-columns:1.4fr .65fr .65fr 38px}.prod-field label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin:0 0 5px}.prod-field input,.prod-field select{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:#fff;outline:none}.prod-field input:focus,.prod-field select:focus{border-color:var(--mint)}.icon-btn{height:38px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-size:18px}.add-line{margin-top:10px;border:1px dashed #b9c8c0;background:#fbfdfc;padding:9px 12px;border-radius:9px;font-weight:700;color:var(--green);cursor:pointer}.summary-box{background:var(--charcoal);color:#fff;border-radius:12px;padding:18px}.summary-box .muted{color:#b9c8c0;font-size:12px}.summary-big{font-size:26px;font-weight:850;margin:6px 0 14px}.summary-row{display:flex;justify-content:space-between;padding:9px 0;border-top:1px solid rgba(255,255,255,.12);font-size:13px}.prod-note{margin-top:12px;padding:11px 12px;border-radius:9px;background:#f4faf7;color:#53635b;font-size:12px}.prod-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.size-chip{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;background:#eef8f3;color:#247b59;font-size:11px;font-weight:800;margin:3px}.@media(max-width:900px){.prod-layout{grid-template-columns:1fr}.prod-row{grid-template-columns:1fr 1fr 1fr 38px}}
-</style>
-
-<style>
 :root{--mint:#32c48d;--mint2:#1fa774;--charcoal:#17211d;--charcoal2:#202c27;--bg:#f5f8f6;--line:#e2e9e5;--text:#18221e;--muted:#78857f;--shadow:0 10px 28px rgba(23,33,29,.07)}
 .sidebar{background:linear-gradient(180deg,#17211d 0%,#202c27 100%)}
 .brand{padding-bottom:22px}
@@ -43,6 +39,26 @@
 .pill{background:rgba(255,255,255,.09)!important;border-color:rgba(255,255,255,.12)!important}
 .connection .dot.on{background:#32c48d;box-shadow:0 0 0 4px rgba(50,196,141,.12)}
 </style>
+
+<style>
+/* NUWIL employee-friendly UX layer */
+.form select,.form textarea,.form input{border:1px solid var(--line);border-radius:9px;padding:10px;font-size:11px;outline:0;background:#fff;color:var(--text)}
+.form textarea{min-height:80px;resize:vertical}
+.helper{font-size:9px;color:var(--muted);line-height:1.5}
+.form-section{grid-column:1/-1;background:#f7faf8;border:1px solid #e3ebe7;border-radius:10px;padding:12px}
+.form-section b{font-size:10px;color:var(--charcoal)}
+.inline-add{display:flex;gap:7px;align-items:end}
+.inline-add .field{flex:1}
+.btn.mini{padding:8px 10px;font-size:9px}
+.hidden-tech{display:none!important}
+.select-wrap{display:flex;gap:7px}
+.select-wrap select{flex:1}
+.quick-note{background:#edf8f3;border:1px solid #d5eee4;border-radius:10px;padding:11px;font-size:10px;color:#426257;line-height:1.55;margin-bottom:12px}
+.detail-card{border:1px solid var(--line);border-radius:11px;padding:12px;background:#fff}
+.detail-card .muted{color:var(--muted);font-size:9px}
+.detail-card b{font-size:12px}
+</style>
+
 </head>
 <body>
 <div class="layout"><aside class="sidebar" id="sidebar">
@@ -69,29 +85,248 @@ function card(a,b,c,i){return `<div class="card"><div class="card-top"><span cla
 async function dashboard(){conn('wait');app.innerHTML=`<div class="hero"><div><div class="eyebrow" style="color:#8de2bd">NUWIL • FROZEN & SEAFOOD</div><h2>Kontrol usaha dalam satu layar</h2><p>Pengadaan bahan baku, inventory, processing, produksi frozen, supply ke TOKA, sampai kontrol keuangan NUWIL.</p><div class="pills"><span class="pill">✓ Inventory</span><span class="pill">✓ Lot Tracking</span><span class="pill">✓ Supply TOKA</span></div></div><img class="hero-logo" src="${LOGO}" alt="NUWIL"></div><div class="panel empty">Memuat data dashboard...</div>`;try{const j=await get({action:'dashboard'}),d=j.data||{};conn('on');app.innerHTML=`<div class="cards">${card('Kas',money(d.cash),'Saldo kas','Rp')}${card('Nilai Inventory',money(d.inventoryValue),'Modal di persediaan','▦')}${card('Supply Toka',money(d.supplyThisMonth),'Bulan berjalan','→')}${card('Lot Aktif',num(d.activeLots),'Lot tercatat','□')}</div><div class="grid"><div class="panel"><div class="panel-head"><div><div class="panel-title">Ringkasan Operasional</div><div class="panel-sub">Angka utama NUWIL dari database.</div></div></div><div class="rows"><div class="row"><span>Kas</span><b>${money(d.cash)}</b></div><div class="row"><span>Nilai inventory</span><b>${money(d.inventoryValue)}</b></div><div class="row"><span>Supply Toka bulan ini</span><b>${money(d.supplyThisMonth)}</b></div><div class="row"><span>Batch produksi</span><b>${num(d.productionBatches)}</b></div></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">Akses Cepat</div><div class="panel-sub">Menu operasional utama.</div></div></div><div class="quick"><button onclick="go('inventory')"><b>Inventory</b><span>Lihat stok dan lot.</span></button><button onclick="go('purchases')"><b>Pembelian</b><span>Catat bahan masuk.</span></button><button onclick="go('products')"><b>Produk</b><span>Kelola master produk.</span></button><button onclick="go('categories')"><b>Kategori</b><span>Kelola kategori.</span></button></div></div></div>`}catch(e){conn('off');app.innerHTML=`<div class="error">${esc(e.message)}</div>`}}
 async function inventory(){conn('wait');app.innerHTML='<div class="panel empty">Memuat inventory...</div>';try{const j=await get({action:'list',table:'LOT',limit:300}),rows=j.data||[];conn('on');app.innerHTML=`<div class="toolbar"><input class="search" id="q" placeholder="Cari lot atau product ID..."><span class="subtitle">${rows.length} lot</span></div><div class="tablebox"><table><thead><tr><th>Lot</th><th>Product ID</th><th>Qty</th><th>Unit</th><th>HPP</th><th>Nilai</th><th>Status</th></tr></thead><tbody id="tb"></tbody></table></div>`;const draw=()=>{const q=(document.getElementById('q').value||'').toLowerCase(),rr=rows.filter(x=>JSON.stringify(x).toLowerCase().includes(q));document.getElementById('tb').innerHTML=rr.length?rr.map(x=>`<tr><td>${esc(x.lot_code)}</td><td>${esc(x.product_id)}</td><td>${num(x.qty_current)}</td><td>${esc(x.unit_id)}</td><td>${money(x.unit_cost)}</td><td>${money((Number(x.qty_current)||0)*(Number(x.unit_cost)||0))}</td><td><span class="badge">${esc(x.status||'-')}</span></td></tr>`).join(''):'<tr><td colspan="7" class="empty">Belum ada lot.</td></tr>'};draw();document.getElementById('q').oninput=draw}catch(e){conn('off');app.innerHTML=`<div class="error">${esc(e.message)}</div>`}}
 async function master(page){const c=masters[page];conn('wait');app.innerHTML='<div class="panel empty">Memuat data...</div>';try{const j=await get({action:'list',table:c.table,limit:300}),rows=j.data||[];conn('on');app.innerHTML=`<div class="toolbar"><input class="search" id="q" placeholder="Cari ${c.label.toLowerCase()}..."><button class="btn primary" onclick="openForm('${page}')">+ Tambah ${c.label}</button></div><div class="tablebox"><table><thead><tr>${c.cols.map(x=>`<th>${label(x)}</th>`).join('')}<th>Aksi</th></tr></thead><tbody id="tb"></tbody></table></div>`;const draw=()=>{const q=(document.getElementById('q').value||'').toLowerCase(),rr=rows.filter(x=>JSON.stringify(x).toLowerCase().includes(q));document.getElementById('tb').innerHTML=rr.length?rr.map(x=>`<tr>${c.cols.map(k=>`<td>${k==='status'?`<span class="badge">${esc(x[k]||'-')}</span>`:esc(x[k]??'')}</td>`).join('')}<td><button class="btn soft" onclick="toast('Edit akan kita aktifkan setelah alur master stabil')">Edit</button></td></tr>`).join(''):`<tr><td colspan="${c.cols.length+1}" class="empty">Belum ada data.</td></tr>`};draw();document.getElementById('q').oninput=draw}catch(e){conn('off');app.innerHTML=`<div class="error">${esc(e.message)}</div>`}}
-function openForm(page){const c=masters[page],fields=page==='products'?[['code','Kode'],['name','Nama Produk'],['product_type','Tipe Produk'],['min_stock','Minimum Stok']]:page==='categories'?[['code','Kode'],['name','Nama Kategori'],['type','Tipe']]:page==='suppliers'?[['code','Kode'],['name','Nama Supplier'],['phone','Telepon'],['address','Alamat']]:[['code','Kode'],['name','Nama Customer'],['customer_type','Tipe Customer']];document.body.insertAdjacentHTML('beforeend',`<div class="modal-bg" id="modal"><div class="modal"><div class="modal-head"><b>Tambah ${c.label}</b><button class="close" onclick="closeModal()">×</button></div><div class="form">${fields.map(f=>`<div class="field ${f[0]==='address'?'full':''}"><label>${f[1]}</label><input id="f_${f[0]}"></div>`).join('')}</div><div class="modal-actions"><button class="btn soft" onclick="closeModal()">Batal</button><button class="btn primary" onclick="saveMaster('${page}')">Simpan</button></div></div></div>`)}
-async function saveMaster(page){const c=masters[page],data={};document.querySelectorAll('#modal input').forEach(x=>data[x.id.slice(2)]=x.value.trim());if(!data.name){toast('Nama wajib diisi');return}data.status='ACTIVE';if(page==='products'){data.category_id='';data.unit_id='';data.product_type=data.product_type||'RAW';data.track_lot=true;data.track_batch=false;data.min_stock=Number(data.min_stock||0)}try{await post({action:'create',table:c.table,data});closeModal();toast('Data tersimpan');master(page)}catch(e){toast(e.message)}}function closeModal(){document.getElementById('modal')?.remove()}
-function modulePage(page){
-  if(page!=='production'){
-    conn('on');app.innerHTML=`<div class="grid"><div class="panel"><div class="panel-head"><div><div class="panel-title">${pages[page][0]}</div><div class="panel-sub">${pages[page][1]}</div></div></div><div class="empty">Modul ini kita bangun bertahap dengan tampilan yang sama. Backend NUWIL sudah terhubung.</div></div><div class="panel"><div class="panel-title">Koneksi Sistem</div><div class="rows"><div class="row"><span>Backend</span><b>Online</b></div><div class="row"><span>Database</span><b>Google Sheets</b></div></div></div></div>`;return;
+function openForm(page){
+  if(page==='suppliers'){
+    return supplierForm();
   }
-  conn('on');
-  app.innerHTML=`<div class="panel" style="margin-bottom:16px"><div class="panel-head"><div><div class="panel-title">Catat Produksi</div><div class="panel-sub">Input bahan yang dipakai dan hasil produksi aktual. HPP dihitung di level batch.</div></div><span class="badge">Draft UI</span></div><div class="prod-tabs" id="prodTabs"><button class="prod-tab active" data-type="adonan">Adonan Dasar</button><button class="prod-tab" data-type="final">Produk Jadi</button></div></div>
-  <div class="prod-layout"><div class="panel prod-section"><div class="section-title">Informasi Produksi</div><div class="section-sub">Operator cukup mencatat proses yang benar-benar terjadi di dapur.</div><div class="form" style="margin-top:14px"><div class="field"><label>Tanggal Produksi</label><input id="p_date" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div class="field"><label>Nama Batch / Referensi</label><input id="p_batch" placeholder="Contoh: Batch 320"></div><div class="field full"><label>Catatan</label><input id="p_note" placeholder="Opsional"></div></div></div>
-  <div class="panel prod-section"><div class="section-title">Ringkasan Batch</div><div class="section-sub">Belum disimpan ke database.</div><div class="summary-box" style="margin-top:14px"><div class="muted">Estimasi total HPP input</div><div class="summary-big" id="p_total">Rp0</div><div class="summary-row"><span>Input</span><b id="p_input_count">0 item</b></div><div class="summary-row"><span>Output</span><b id="p_output_count">0 item</b></div><div class="summary-row"><span>Status</span><b>Draft</b></div></div><div class="prod-note">Ukuran/size di sini adalah klasifikasi visual, bukan patokan gram. Output bisa berbeda dari size bahan awal.</div></div>
-  <div class="panel prod-section"><div class="section-title">Bahan / Input</div><div class="section-sub">Contoh: Cumi 7 kg + Adonan Bakso 5 kg.</div><div id="inputRows"></div><button class="add-line" onclick="addProdInput()">+ Tambah bahan</button></div>
-  <div class="panel prod-section"><div class="section-title">Hasil / Output</div><div class="section-sub">Catat hasil aktual. Untuk produk ber-size, pilih size sesuai hasil nyata.</div><div id="outputRows"></div><button class="add-line" onclick="addProdOutput()">+ Tambah output</button><div class="prod-actions"><button class="btn soft" onclick="go('production')">Reset</button><button class="btn primary" onclick="previewProduction()">Review Produksi</button></div></div></div>`;
-  window.prodInputs=[];window.prodOutputs=[];addProdInput();addProdOutput();
-  document.querySelectorAll('#prodTabs .prod-tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('#prodTabs .prod-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');});
+  const c=masters[page],fields=page==='products'?[['code','Kode'],['name','Nama Produk'],['product_type','Tipe Produk'],['min_stock','Minimum Stok']]:page==='categories'?[['code','Kode'],['name','Nama Kategori'],['type','Tipe']]:[['code','Kode'],['name','Nama Customer'],['customer_type','Tipe Customer']];
+  document.body.insertAdjacentHTML('beforeend',`<div class="modal-bg" id="modal"><div class="modal"><div class="modal-head"><b>Tambah ${c.label}</b><button class="close" onclick="closeModal()">×</button></div><div class="form">${fields.map(f=>`<div class="field ${f[0]==='address'?'full':''}"><label>${f[1]}</label><input id="f_${f[0]}"></div>`).join('')}</div><div class="modal-actions"><button class="btn soft" onclick="closeModal()">Batal</button><button class="btn primary" onclick="saveMaster('${page}')">Simpan</button></div></div></div>`)
 }
-function addProdInput(){window.prodInputs.push({name:'',qty:'',unit:'kg',cost:''});drawProdInputs()}
-function removeProdInput(i){window.prodInputs.splice(i,1);drawProdInputs()}
-function drawProdInputs(){const el=document.getElementById('inputRows');if(!el)return;el.innerHTML=window.prodInputs.map((x,i)=>`<div class="prod-row"><div class="prod-field"><label>Bahan</label><input value="${esc(x.name)}" placeholder="Contoh: Cumi" oninput="prodInputs[${i}].name=this.value"></div><div class="prod-field"><label>Qty</label><input type="number" step="0.001" value="${x.qty}" placeholder="0" oninput="prodInputs[${i}].qty=this.value;updateProdSummary()"></div><div class="prod-field"><label>HPP/unit</label><input type="number" step="1" value="${x.cost}" placeholder="Rp" oninput="prodInputs[${i}].cost=this.value;updateProdSummary()"></div><button class="icon-btn" onclick="removeProdInput(${i})">×</button></div>`).join('');updateProdSummary()}
-function addProdOutput(){window.prodOutputs.push({name:'',size:'',qty:'',unit:'pcs'});drawProdOutputs()}
-function removeProdOutput(i){window.prodOutputs.splice(i,1);drawProdOutputs()}
-function drawProdOutputs(){const el=document.getElementById('outputRows');if(!el)return;el.innerHTML=window.prodOutputs.map((x,i)=>`<div class="prod-row output"><div class="prod-field"><label>Produk</label><input value="${esc(x.name)}" placeholder="Contoh: Bakso Cumi" oninput="prodOutputs[${i}].name=this.value"></div><div class="prod-field"><label>Size / Grade</label><input value="${esc(x.size)}" placeholder="Regular" oninput="prodOutputs[${i}].size=this.value"></div><div class="prod-field"><label>Qty</label><input type="number" step="1" value="${x.qty}" placeholder="0" oninput="prodOutputs[${i}].qty=this.value;updateProdSummary()"></div><button class="icon-btn" onclick="removeProdOutput(${i})">×</button></div>`).join('');updateProdSummary()}
-function updateProdSummary(){const ti=window.prodInputs.reduce((a,x)=>a+(Number(x.qty)||0)*(Number(x.cost)||0),0);const ic=window.prodInputs.filter(x=>x.name||x.qty).length;const oc=window.prodOutputs.filter(x=>x.name||x.qty).length;document.getElementById('p_total')&&(document.getElementById('p_total').textContent=money(ti));document.getElementById('p_input_count')&&(document.getElementById('p_input_count').textContent=ic+' item');document.getElementById('p_output_count')&&(document.getElementById('p_output_count').textContent=oc+' item')}
-function previewProduction(){const inputs=window.prodInputs.filter(x=>x.name&&Number(x.qty)>0),outputs=window.prodOutputs.filter(x=>x.name&&Number(x.qty)>0);if(!inputs.length||!outputs.length){toast('Isi minimal 1 bahan dan 1 output');return}const hpp=inputs.reduce((a,x)=>a+(Number(x.qty)||0)*(Number(x.cost)||0),0);toast('Review siap — backend transaksi produksi kita kunci setelah alur lapangan tervalidasi.');console.log({date:document.getElementById('p_date')?.value,batch:document.getElementById('p_batch')?.value,inputs,outputs,total_hpp:hpp})}
+async function saveMaster(page){const c=masters[page],data={};document.querySelectorAll('#modal input').forEach(x=>data[x.id.slice(2)]=x.value.trim());if(!data.name){toast('Nama wajib diisi');return}data.status='ACTIVE';if(page==='products'){data.category_id='';data.unit_id='';data.product_type=data.product_type||'RAW';data.track_lot=true;data.track_batch=false;data.min_stock=Number(data.min_stock||0)}try{await post({action:'create',table:c.table,data});closeModal();toast('Data tersimpan');master(page)}catch(e){toast(e.message)}}function closeModal(){document.getElementById('modal')?.remove()}
+function modulePage(page){conn('on');app.innerHTML=`<div class="grid"><div class="panel"><div class="panel-head"><div><div class="panel-title">${pages[page][0]}</div><div class="panel-sub">${pages[page][1]}</div></div></div><div class="empty">Modul ini kita bangun bertahap dengan tampilan yang sama. Backend NUWIL sudah terhubung.</div></div><div class="panel"><div class="panel-title">Koneksi Sistem</div><div class="rows"><div class="row"><span>Backend</span><b>Online</b></div><div class="row"><span>Database</span><b>Google Sheets</b></div></div></div></div>`}
+
+/* ===== EMPLOYEE-FRIENDLY MODULES ===== */
+const cache={};
+async function loadMasterRows(table){
+  if(cache[table]) return cache[table];
+  const j=await get({action:'list',table,limit:500});
+  cache[table]=j.data||[];
+  return cache[table];
+}
+function humanCode(prefix){
+  const d=new Date(),p=n=>String(n).padStart(2,'0');
+  return `${prefix}-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${String(Date.now()).slice(-3)}`;
+}
+function selectOptions(rows,valueField,labelFn,empty='Pilih...'){
+  return `<option value="">${empty}</option>`+rows.map(r=>`<option value="${esc(r[valueField]??'')}">${esc(labelFn(r))}</option>`).join('');
+}
+function fieldHTML(id,labelText,type='text',opts=''){
+  if(type==='select') return `<div class="field"><label>${labelText}</label><select id="f_${id}">${opts}</select></div>`;
+  if(type==='textarea') return `<div class="field full"><label>${labelText}</label><textarea id="f_${id}" placeholder="Opsional"></textarea></div>`;
+  return `<div class="field"><label>${labelText}</label><input id="f_${id}" type="${type}"></div>`;
+}
+function openEmployeeModal(titleText,body,saveFn){
+  document.body.insertAdjacentHTML('beforeend',`<div class="modal-bg" id="modal"><div class="modal"><div class="modal-head"><b>${titleText}</b><button class="close" onclick="closeModal()">×</button></div>${body}<div class="modal-actions"><button class="btn soft" onclick="closeModal()">Batal</button><button class="btn primary" id="modalSave">Simpan</button></div></div></div>`);
+  document.getElementById('modalSave').onclick=saveFn;
+}
+function clearCache(){Object.keys(cache).forEach(k=>delete cache[k])}
+
+async function supplierForm(){
+  openEmployeeModal('Tambah Supplier',`<div class="quick-note">Cukup masukkan nama supplier. Kode supplier dibuat otomatis oleh sistem. Nomor HP dan alamat boleh diisi nanti.</div><div class="form">
+    ${fieldHTML('name','Nama Supplier')}
+    ${fieldHTML('phone','Nomor HP','tel')}
+    ${fieldHTML('address','Alamat','textarea')}
+    ${fieldHTML('notes','Keterangan','textarea')}
+  </div>`,async()=>{
+    const name=document.getElementById('f_name').value.trim();
+    if(!name){toast('Nama supplier wajib diisi');return}
+    try{
+      await post({action:'create',table:'MST_SUPPLIER',data:{
+        code:humanCode('SUP'),name,phone:document.getElementById('f_phone').value.trim(),
+        address:document.getElementById('f_address').value.trim(),status:'ACTIVE',
+        notes:document.getElementById('f_notes').value.trim()
+      }});
+      clearCache();closeModal();toast('Supplier tersimpan');master('suppliers');
+    }catch(e){toast(e.message)}
+  });
+}
+
+async function purchaseForm(){
+  try{
+    const [suppliers,products,units]=await Promise.all([
+      loadMasterRows('MST_SUPPLIER'),loadMasterRows('MST_PRODUCT'),loadMasterRows('MST_UNIT')
+    ]);
+    const unitOpts=selectOptions(units,'id',x=>x.name||x.code,'Pilih satuan...');
+    openEmployeeModal('Pembelian Bahan Baku',
+      `<div class="quick-note"><b>No. Pembelian dibuat otomatis.</b><br>Karyawan cukup pilih supplier, barang, jumlah, dan harga. Tidak perlu mengisi ID supplier atau ID produk.</div>
+       <div class="form">
+        ${fieldHTML('supplier','Supplier','select',selectOptions(suppliers,'id',x=>x.name,'Pilih supplier...'))}
+        <div class="field"><label></label><button class="btn soft mini" type="button" onclick="supplierForm()">+ Supplier Baru</button></div>
+        ${fieldHTML('purchase_date','Tanggal','date')}
+        ${fieldHTML('product','Barang','select',selectOptions(products,'id',x=>x.name,'Pilih barang...'))}
+        ${fieldHTML('qty_invoice','Qty Invoice','number')}
+        ${fieldHTML('qty_actual','Qty Aktual','number')}
+        ${fieldHTML('unit','Satuan','select',unitOpts)}
+        ${fieldHTML('unit_price','Harga per Satuan','number')}
+        ${fieldHTML('payment_status','Pembayaran','select','<option value="PAID">Lunas</option><option value="UNPAID">Belum Lunas</option><option value="PARTIAL">Sebagian</option>')}
+        ${fieldHTML('notes','Catatan','textarea')}
+       </div>`,
+      async()=>{
+        const supplier=document.getElementById('f_supplier').value;
+        const product=document.getElementById('f_product').value;
+        const qtyActual=Number(document.getElementById('f_qty_actual').value||0);
+        const qtyInvoice=Number(document.getElementById('f_qty_invoice').value||0);
+        const unit=document.getElementById('f_unit').value;
+        const price=Number(document.getElementById('f_unit_price').value||0);
+        if(!supplier||!product||!qtyActual||!unit||!price){toast('Supplier, barang, qty aktual, satuan, dan harga wajib diisi');return}
+        const code=humanCode('PO');
+        try{
+          const h=await post({action:'create',table:'PURCHASE',data:{
+            purchase_code:code,supplier_id:supplier,purchase_date:document.getElementById('f_purchase_date').value,
+            invoice_qty:qtyInvoice,actual_qty:qtyActual,unit_id:unit,total_amount:qtyActual*price,
+            payment_status:document.getElementById('f_payment_status').value,notes:document.getElementById('f_notes').value.trim()
+          }});
+          await post({action:'create',table:'PURCHASE_DETAIL',data:{
+            purchase_id:h.data?.id||h.id||code,product_id:product,qty_invoice:qtyInvoice,qty_actual:qtyActual,
+            unit_id:unit,unit_price:price,total_cost:qtyActual*price,lot_id:''
+          }});
+          closeModal();toast(`Pembelian ${code} tersimpan`);modulePage('purchases');
+        }catch(e){toast(e.message)}
+      });
+    document.getElementById('f_purchase_date').value=new Date().toISOString().slice(0,10);
+    // Prefer actual qty = invoice qty for fast entry.
+    document.getElementById('f_qty_invoice').oninput=e=>{if(!document.getElementById('f_qty_actual').value)document.getElementById('f_qty_actual').value=e.target.value}
+  }catch(e){toast(e.message)}
+}
+
+async function genericOperationForm(page){
+  const configs={
+    processing:{title:'Sorting / Processing',note:'Pecah atau olah bahan dari lot yang sudah tersedia.',table:'PROCESSING'},
+    production:{title:'Produksi Frozen',note:'Catat produksi berdasarkan bahan yang benar-benar dipakai dan hasil aktual.',table:'PRODUCTION'},
+    supply:{title:'Supply ke TOKA',note:'TOKA sudah menjadi customer internal NUWIL. Karyawan cukup pilih produk dan jumlah.',table:'SUPPLY'},
+    finance:{title:'Transaksi Finance',note:'Pilih akun berdasarkan nama. ID akun tidak perlu diketahui karyawan.',table:'FINANCE_TRANSACTION'}
+  };
+  const c=configs[page];
+  try{
+    const [products,customers,accounts]=await Promise.all([
+      loadMasterRows('MST_PRODUCT'),loadMasterRows('MST_CUSTOMER'),loadMasterRows('MST_ACCOUNT')
+    ]);
+    let body='';
+    if(page==='processing'){
+      const lots=await loadMasterRows('LOT');
+      body=`<div class="quick-note">${c.note}</div><div class="form">
+        ${fieldHTML('processing_date','Tanggal','date')}
+        ${fieldHTML('source_lot','Lot Bahan','select',selectOptions(lots,'id',x=>`${x.lot_code||'-'} • ${x.qty_current||0} ${x.unit_id||''}`,'Pilih lot...'))}
+        ${fieldHTML('qty_used','Qty Diproses','number')}
+        ${fieldHTML('notes','Catatan','textarea')}
+      </div>`;
+    }else if(page==='production'){
+      body=`<div class="quick-note"><b>Produksi dicatat sebagai batch.</b><br>HPP dihitung dari total bahan yang dipakai. Size/grade hanya mengikuti hasil aktual dan tidak dipatok berdasarkan gram.</div>
+        <div class="section-label">Info Produksi</div><div class="form">
+          ${fieldHTML('production_date','Tanggal','date')}
+          ${fieldHTML('production_type','Jenis Produksi','select','<option value="">Pilih jenis...</option><option value="ADONAN">Adonan Dasar</option><option value="PRODUK_JADI">Produk Jadi</option>')}
+          ${fieldHTML('production_name','Nama Produksi','select',selectOptions(products,'id',x=>x.name,'Pilih produk...'))}
+        </div>
+        <div class="section-label">Bahan yang Dipakai</div>
+        <div id="prodInputs" class="stack"></div>
+        <button class="btn soft" type="button" onclick="addProdInput()">+ Tambah Bahan</button>
+        <div class="section-label">Hasil Aktual</div>
+        <div id="prodOutputs" class="stack"></div>
+        <button class="btn soft" type="button" onclick="addProdOutput()">+ Tambah Output / Size</button>
+        <div class="prod-total panel"><div class="row"><span>Total HPP Batch</span><b id="prodTotal">Rp0</b></div><div class="row"><span>Total Output</span><b id="prodOutputTotal">0</b></div></div>
+        ${fieldHTML('notes','Catatan','textarea')}`;
+    }else if(page==='supply'){
+      body=`<div class="quick-note">${c.note}</div><div class="form">
+        ${fieldHTML('supply_date','Tanggal','date')}
+        ${fieldHTML('customer','Customer','select',selectOptions(customers,'id',x=>x.name,'Pilih customer...'))}
+        ${fieldHTML('product','Produk','select',selectOptions(products,'id',x=>x.name,'Pilih produk...'))}
+        ${fieldHTML('qty','Qty','number')}
+        ${fieldHTML('unit_price','Harga Jual','number')}
+        ${fieldHTML('payment_status','Pembayaran','select','<option value="PAID">Lunas</option><option value="UNPAID">Belum Lunas</option><option value="PARTIAL">Sebagian</option>')}
+        ${fieldHTML('notes','Catatan','textarea')}
+      </div>`;
+    }else{
+      body=`<div class="quick-note">${c.note}</div><div class="form">
+        ${fieldHTML('transaction_date','Tanggal','date')}
+        ${fieldHTML('transaction_type','Jenis','select','<option value="INCOME">Pemasukan</option><option value="EXPENSE">Pengeluaran</option><option value="CAPITAL">Modal</option><option value="WITHDRAWAL">Prive</option>')}
+        ${fieldHTML('account','Akun','select',selectOptions(accounts,'id',x=>x.name,'Pilih akun...'))}
+        ${fieldHTML('amount','Nominal','number')}
+        ${fieldHTML('direction','Arus','select','<option value="IN">Masuk</option><option value="OUT">Keluar</option>')}
+        ${fieldHTML('description','Keterangan','textarea')}
+      </div>`;
+    }
+    openEmployeeModal(c.title,body,async()=>{
+      try{
+        let data={};
+        if(page==='production'){
+          const code=humanCode('BAT');
+          const outputs=[...document.querySelectorAll('.prod-output')].map(r=>({name:r.querySelector('.po-name')?.value||'',size:r.querySelector('.po-size')?.value||'',qty:Number(r.querySelector('.po-qty')?.value||0),unit:r.querySelector('.po-unit')?.value||''})).filter(x=>x.name||x.qty);
+          const inputs=[...document.querySelectorAll('.prod-input')].map(r=>({name:r.querySelector('.pi-name')?.value||'',qty:Number(r.querySelector('.pi-qty')?.value||0),hpp:Number(r.querySelector('.pi-hpp')?.value||0),unit:r.querySelector('.pi-unit')?.value||''})).filter(x=>x.name||x.qty);
+          const totalCost=inputs.reduce((a,x)=>a+(x.qty*x.hpp),0);
+          const outputTotal=outputs.reduce((a,x)=>a+(x.qty||0),0);
+          if(!document.getElementById('f_production_name').value||!outputTotal){toast('Nama produksi dan minimal satu output wajib diisi');return}
+          data={batch_code:code,production_date:document.getElementById('f_production_date').value,product_id:document.getElementById('f_production_name').value,output_qty:outputTotal,output_unit_id:outputs[0]?.unit||'',total_cost:totalCost,unit_cost:outputTotal?totalCost/outputTotal:0,status:'DRAFT',notes:document.getElementById('f_notes').value.trim()};
+        }else if(page==='processing'){
+          const code=humanCode('PRC');
+          data={processing_code:code,processing_date:document.getElementById('f_processing_date').value,status:'DRAFT',notes:document.getElementById('f_notes').value.trim()};
+        }else if(page==='supply'){
+          const code=humanCode('SUPPLY');
+          const qty=Number(document.getElementById('f_qty').value||0),price=Number(document.getElementById('f_unit_price').value||0);
+          data={supply_code:code,supply_date:document.getElementById('f_supply_date').value,customer_id:document.getElementById('f_customer').value,total_amount:qty*price,total_cost:0,gross_profit:qty*price,payment_status:document.getElementById('f_payment_status').value,payment_account_id:'',notes:document.getElementById('f_notes').value.trim()};
+        }else{
+          data={transaction_code:humanCode('TRX'),transaction_date:document.getElementById('f_transaction_date').value,transaction_type:document.getElementById('f_transaction_type').value,account_id:document.getElementById('f_account').value,amount:Number(document.getElementById('f_amount').value||0),direction:document.getElementById('f_direction').value,description:document.getElementById('f_description').value.trim()};
+        }
+        await post({action:'create',table:c.table,data});
+        closeModal();toast('Data tersimpan');modulePage(page);
+      }catch(e){toast(e.message)}
+    });
+    if(document.getElementById('f_production_date'))document.getElementById('f_production_date').value=new Date().toISOString().slice(0,10);
+    if(document.getElementById('f_processing_date'))document.getElementById('f_processing_date').value=new Date().toISOString().slice(0,10);
+    if(document.getElementById('f_supply_date'))document.getElementById('f_supply_date').value=new Date().toISOString().slice(0,10);
+    if(document.getElementById('f_transaction_date'))document.getElementById('f_transaction_date').value=new Date().toISOString().slice(0,10);
+    if(page==='production'){ addProdInput(); addProdOutput(); }
+  }catch(e){toast(e.message)}
+}
+function addProdInput(){
+  const wrap=document.getElementById('prodInputs'); if(!wrap)return;
+  wrap.insertAdjacentHTML('beforeend',`<div class="prod-input mini-grid"><input class="pi-name" placeholder="Bahan / Lot"><input class="pi-qty" type="number" step="0.001" placeholder="Qty"><input class="pi-unit" placeholder="kg"><input class="pi-hpp" type="number" step="1" placeholder="HPP/unit"><button class="btn danger mini" type="button" onclick="this.parentElement.remove();calcProd()">×</button></div>`);
+  wrap.lastElementChild.querySelectorAll('input').forEach(x=>x.oninput=calcProd); calcProd();
+}
+function addProdOutput(){
+  const wrap=document.getElementById('prodOutputs'); if(!wrap)return;
+  wrap.insertAdjacentHTML('beforeend',`<div class="prod-output mini-grid"><input class="po-name" placeholder="Produk / output"><input class="po-size" placeholder="Size / grade (opsional)"><input class="po-qty" type="number" step="0.001" placeholder="Qty"><input class="po-unit" placeholder="pcs / kg / box"><button class="btn danger mini" type="button" onclick="this.parentElement.remove();calcProd()">×</button></div>`);
+  wrap.lastElementChild.querySelectorAll('input').forEach(x=>x.oninput=calcProd); calcProd();
+}
+function calcProd(){
+  const inputs=[...document.querySelectorAll('.prod-input')]; const outputs=[...document.querySelectorAll('.prod-output')];
+  const cost=inputs.reduce((a,r)=>a+(Number(r.querySelector('.pi-qty')?.value||0)*Number(r.querySelector('.pi-hpp')?.value||0)),0);
+  const qty=outputs.reduce((a,r)=>a+Number(r.querySelector('.po-qty')?.value||0),0);
+  if(document.getElementById('prodTotal'))document.getElementById('prodTotal').textContent=money(cost);
+  if(document.getElementById('prodOutputTotal'))document.getElementById('prodOutputTotal').textContent=num(qty);
+}
+
+
+async function modulePage(page){
+  conn('on');
+  if(page==='purchases'){
+    app.innerHTML=`<div class="toolbar"><input class="search" id="q" placeholder="Cari nomor pembelian atau supplier..."><button class="btn primary" onclick="purchaseForm()">+ Pembelian Baru</button></div><div class="quick-note">Operator tidak perlu tahu ID pembelian, ID supplier, atau UUID. Semua nomor dibuat otomatis oleh sistem.</div><div class="tablebox"><table><thead><tr><th>No Pembelian</th><th>Tanggal</th><th>Supplier</th><th>Qty Aktual</th><th>Total</th><th>Pembayaran</th></tr></thead><tbody id="tb"><tr><td colspan="6" class="empty">Memuat...</td></tr></tbody></table></div>`;
+    try{
+      const [rows,suppliers]=await Promise.all([get({action:'list',table:'PURCHASE',limit:300}).then(x=>x.data||[]),loadMasterRows('MST_SUPPLIER')]);
+      const sm=Object.fromEntries(suppliers.map(x=>[x.id,x.name]));
+      const draw=()=>{const q=(document.getElementById('q').value||'').toLowerCase(),rr=rows.filter(x=>`${x.purchase_code||''} ${sm[x.supplier_id]||''}`.toLowerCase().includes(q));document.getElementById('tb').innerHTML=rr.length?rr.map(x=>`<tr><td><b>${esc(x.purchase_code||'-')}</b></td><td>${esc(x.purchase_date||'-')}</td><td>${esc(sm[x.supplier_id]||'Supplier')}</td><td>${num(x.actual_qty)} ${esc(x.unit_id||'')}</td><td>${money(x.total_amount)}</td><td><span class="badge">${esc(x.payment_status||'-')}</span></td></tr>`).join(''):'<tr><td colspan="6" class="empty">Belum ada pembelian.</td></tr>'};draw();document.getElementById('q').oninput=draw;
+    }catch(e){app.innerHTML=`<div class="error">${esc(e.message)}</div>`}
+    return;
+  }
+  if(['processing','production','supply','finance'].includes(page)){
+    app.innerHTML=`<div class="toolbar"><div></div><button class="btn primary" onclick="genericOperationForm('${page}')">+ Input ${pages[page][0]}</button></div><div class="quick-note">Tampilan ini sengaja dibuat sederhana untuk karyawan. Detail ID, UUID, dan relasi database dikelola sistem di belakang layar.</div><div class="panel empty">Belum ada tampilan riwayat yang diaktifkan pada layar ini. Gunakan tombol input untuk mencatat transaksi.</div>`;
+    return;
+  }
+  app.innerHTML=`<div class="panel empty">${pages[page][0]} siap digunakan.</div>`;
+}
+
+/* Supplier page: human-readable, no forced code entry */
+async function master(page){
+  const c=masters[page];conn('wait');app.innerHTML='<div class="panel empty">Memuat data...</div>';
+  try{
+    const rows=await loadMasterRows(c.table);conn('on');
+    if(page==='suppliers'){
+      app.innerHTML=`<div class="toolbar"><input class="search" id="q" placeholder="Cari nama supplier..."><button class="btn primary" onclick="supplierForm()">+ Supplier Baru</button></div><div class="quick-note">Daftar supplier tampil di aplikasi. Kode supplier dibuat otomatis dan tidak perlu diketahui saat transaksi.</div><div class="tablebox"><table><thead><tr><th>Supplier</th><th>No. HP</th><th>Alamat</th><th>Status</th></tr></thead><tbody id="tb"></tbody></table></div>`;
+      const draw=()=>{const q=(document.getElementById('q').value||'').toLowerCase(),rr=rows.filter(x=>JSON.stringify(x).toLowerCase().includes(q));document.getElementById('tb').innerHTML=rr.length?rr.map(x=>`<tr><td><b>${esc(x.name||'-')}</b><div class="muted">${esc(x.code||'')}</div></td><td>${esc(x.phone||'-')}</td><td>${esc(x.address||'-')}</td><td><span class="badge">${esc(x.status||'-')}</span></td></tr>`).join(''):'<tr><td colspan="4" class="empty">Belum ada supplier.</td></tr>'};draw();document.getElementById('q').oninput=draw;return;
+    }
+    app.innerHTML=`<div class="toolbar"><input class="search" id="q" placeholder="Cari ${c.label.toLowerCase()}..."><button class="btn primary" onclick="openForm('${page}')">+ Tambah ${c.label}</button></div><div class="tablebox"><table><thead><tr>${c.cols.map(x=>`<th>${label(x)}</th>`).join('')}</tr></thead><tbody id="tb"></tbody></table></div>`;
+    const draw=()=>{const q=(document.getElementById('q').value||'').toLowerCase(),rr=rows.filter(x=>JSON.stringify(x).toLowerCase().includes(q));document.getElementById('tb').innerHTML=rr.length?rr.map(x=>`<tr>${c.cols.map(k=>`<td>${k==='status'?`<span class="badge">${esc(x[k]||'-')}</span>`:esc(x[k]??'')}</td>`).join('')}</tr>`).join(''):'<tr><td colspan="'+c.cols.length+'" class="empty">Belum ada data.</td></tr>'};draw();document.getElementById('q').oninput=draw;
+  }catch(e){conn('off');app.innerHTML=`<div class="error">${esc(e.message)}</div>`}
+}
 
 go('dashboard');
 </script></body></html>
