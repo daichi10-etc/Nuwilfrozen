@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#071a36">
+  <meta name="theme-color" content="#0b2a55">
   <title>NUWIL Management</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,49 +13,55 @@
 <body>
   <div id="toast" class="toast"></div>
 
-  <aside class="sidebar" id="sidebar">
-    <div class="brand">
+  <header class="site-header">
+    <div class="header-brand">
       <img src="logo.jpg" alt="NUWIL">
-      <div>
+      <div class="brand-copy">
         <strong>NUWIL</strong>
-        <span>Frozen & Seafood</span>
+        <span>FROZEN & SEAFOOD</span>
       </div>
     </div>
 
-    <nav id="nav">
-      <button class="nav-item active" data-page="dashboard"><span>⌂</span> Dashboard</button>
-      <button class="nav-item" data-page="inventory"><span>▣</span> Inventory</button>
-      <button class="nav-item" data-page="purchases"><span>↓</span> Pembelian</button>
-      <button class="nav-item" data-page="processing"><span>⚙</span> Sorting / Processing</button>
-      <button class="nav-item" data-page="production"><span>◆</span> Produksi</button>
-      <button class="nav-item" data-page="supply"><span>→</span> Supply Toka</button>
-      <button class="nav-item" data-page="finance"><span>Rp</span> Finance</button>
-      <div class="nav-label">MASTER DATA</div>
-      <button class="nav-item" data-page="products"><span>□</span> Produk</button>
-      <button class="nav-item" data-page="categories"><span>≡</span> Kategori</button>
-      <button class="nav-item" data-page="suppliers"><span>♙</span> Supplier</button>
-      <button class="nav-item" data-page="customers"><span>♧</span> Customer</button>
+    <button class="mobile-menu" id="mobileMenu" aria-label="Menu">☰</button>
+
+    <nav class="main-nav" id="mainNav">
+      <button class="nav-item active" data-page="dashboard"><span>⌂</span>Dashboard</button>
+      <button class="nav-item" data-page="inventory"><span>▦</span>Inventory</button>
+      <button class="nav-item" data-page="purchases"><span>↓</span>Pembelian</button>
+      <button class="nav-item" data-page="processing"><span>⚙</span>Sorting / Processing</button>
+      <button class="nav-item" data-page="production"><span>◆</span>Produksi</button>
+      <button class="nav-item" data-page="supply"><span>→</span>Supply Toka</button>
+      <button class="nav-item" data-page="finance"><span>Rp</span>Finance</button>
+      <button class="nav-item" data-page="products"><span>□</span>Produk</button>
+      <button class="nav-item" data-page="categories"><span>≡</span>Kategori</button>
+      <button class="nav-item" data-page="suppliers"><span>♙</span>Supplier</button>
+      <button class="nav-item" data-page="customers"><span>♧</span>Customer</button>
     </nav>
 
-    <div class="sidebar-foot">
-      <span class="dot"></span> Sistem online
-    </div>
-  </aside>
-
-  <main class="main">
-    <header class="topbar">
-      <div class="top-left">
-        <button class="mobile-menu" id="mobileMenu">☰</button>
+    <div class="header-right">
+      <div class="connection"><i></i><span id="status">Connecting...</span></div>
+      <div class="user-chip">
+        <div class="avatar">D</div>
         <div>
-          <h1 id="pageTitle">Dashboard</h1>
-          <p id="pageSubtitle">Ringkasan kondisi NUWIL</p>
+          <strong>Owner</strong>
+          <span>NUWIL Management</span>
         </div>
       </div>
-      <div class="top-right">
-        <span id="status" class="status"><i></i> Connecting...</span>
-        <span id="today" class="today"></span>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <div class="page-heading">
+      <div>
+        <div class="eyebrow">NUWIL MANAGEMENT SYSTEM</div>
+        <h1 id="pageTitle">Dashboard</h1>
+        <p id="pageSubtitle">Ringkasan kondisi usaha dan persediaan.</p>
       </div>
-    </header>
+      <div class="date-box">
+        <span>Hari ini</span>
+        <strong id="today"></strong>
+      </div>
+    </div>
 
     <section id="app"></section>
   </main>
