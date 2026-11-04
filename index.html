@@ -148,8 +148,7 @@ async function purchaseForm(){
     ]);
     const unitOpts=selectOptions(units,'id',x=>x.name||x.code,'Pilih satuan...');
     openEmployeeModal('Pembelian Bahan Baku',
-      `<div class="quick-note"><b>No. Pembelian & lot dibuat otomatis.</b><br>Karyawan cukup pilih supplier, barang, jumlah, harga, dan biaya ongkir. Ongkir masuk ke nilai lot/HPP bahan, bukan biaya operasional.</div>
-       <div class="form">
+      `<div class="form">
         ${fieldHTML('supplier','Supplier','select',selectOptions(suppliers,'id',x=>x.name,'Pilih supplier...'))}
         <div class="field"><label></label><button class="btn soft mini" type="button" onclick="supplierForm()">+ Supplier Baru</button></div>
         ${fieldHTML('purchase_date','Tanggal','date')}
