@@ -148,7 +148,7 @@ async function purchaseForm(){
     ]);
     const unitOpts=selectOptions(units,'id',x=>x.name||x.code,'Pilih satuan...');
     openEmployeeModal('Pembelian Bahan Baku',
-      `<div class="quick-note"><b>No. Pembelian dibuat otomatis.</b><br>Karyawan cukup pilih supplier, barang, jumlah, dan harga. Tidak perlu mengisi ID supplier atau ID produk.</div>
+      `<div class="quick-note"><b>No. Pembelian & lot dibuat otomatis.</b><br>Karyawan cukup pilih supplier, barang, jumlah, harga, dan biaya ongkir. Ongkir masuk ke nilai lot/HPP bahan, bukan biaya operasional.</div>
        <div class="form">
         ${fieldHTML('supplier','Supplier','select',selectOptions(suppliers,'id',x=>x.name,'Pilih supplier...'))}
         <div class="field"><label></label><button class="btn soft mini" type="button" onclick="supplierForm()">+ Supplier Baru</button></div>
@@ -158,6 +158,8 @@ async function purchaseForm(){
         ${fieldHTML('qty_actual','Qty Aktual','number')}
         ${fieldHTML('unit','Satuan','select',unitOpts)}
         ${fieldHTML('unit_price','Harga per Satuan','number')}
+        ${fieldHTML('freight_cost','Ongkir / Biaya Angkut','number')}
+        <div class="field full"><div class="quick-note" id="purchaseCostSummary">Nilai barang: Rp0<br>Ongkir: Rp0<br><b>Total modal lot: Rp0</b><br>HPP lot: Rp0 / satuan</div></div>
         ${fieldHTML('payment_status','Pembayaran','select','<option value="PAID">Lunas</option><option value="UNPAID">Belum Lunas</option><option value="PARTIAL">Sebagian</option>')}
         ${fieldHTML('notes','Catatan','textarea')}
        </div>`,
@@ -168,24 +170,60 @@ async function purchaseForm(){
         const qtyInvoice=Number(document.getElementById('f_qty_invoice').value||0);
         const unit=document.getElementById('f_unit').value;
         const price=Number(document.getElementById('f_unit_price').value||0);
+        const freight=Number(document.getElementById('f_freight_cost').value||0);
         if(!supplier||!product||!qtyActual||!unit||!price){toast('Supplier, barang, qty aktual, satuan, dan harga wajib diisi');return}
+        if(freight<0){toast('Ongkir tidak boleh negatif');return}
+
+        const productRow=products.find(x=>x.id===product);
         const code=humanCode('PO');
+        const goodsCost=qtyActual*price;
+        const landedCost=goodsCost+freight;
+        const landedUnitCost=qtyActual?landedCost/qtyActual:0;
+        const d=new Date(document.getElementById('f_purchase_date').value||new Date());
+        const p=n=>String(n).padStart(2,'0');
+        const lotPrefix=(productRow?.code||'LOT').toUpperCase().replace(/[^A-Z0-9]/g,'');
+        const lotCode=`${lotPrefix}-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${String(Date.now()).slice(-3)}`;
+
         try{
           const h=await post({action:'create',table:'PURCHASE',data:{
             purchase_code:code,supplier_id:supplier,purchase_date:document.getElementById('f_purchase_date').value,
-            invoice_qty:qtyInvoice,actual_qty:qtyActual,unit_id:unit,total_amount:qtyActual*price,
+            invoice_qty:qtyInvoice,actual_qty:qtyActual,unit_id:unit,total_amount:landedCost,
             payment_status:document.getElementById('f_payment_status').value,notes:document.getElementById('f_notes').value.trim()
           }});
+
+          const lot=await post({action:'create',table:'LOT',data:{
+            lot_code:lotCode,product_id:product,source_type:'PURCHASE',source_ref:h.data?.id||h.id||code,
+            qty_in:qtyActual,qty_current:qtyActual,unit_id:unit,unit_cost:landedUnitCost,
+            total_cost:landedCost,received_at:document.getElementById('f_purchase_date').value,status:'ACTIVE',parent_lot_id:''
+          }});
+
           await post({action:'create',table:'PURCHASE_DETAIL',data:{
             purchase_id:h.data?.id||h.id||code,product_id:product,qty_invoice:qtyInvoice,qty_actual:qtyActual,
-            unit_id:unit,unit_price:price,total_cost:qtyActual*price,lot_id:''
+            unit_id:unit,unit_price:price,total_cost:landedCost,lot_id:lot.data?.id||lot.id||''
           }});
-          closeModal();toast(`Pembelian ${code} tersimpan`);modulePage('purchases');
+
+          closeModal();toast(`Pembelian ${code} tersimpan • Lot ${lotCode}`);modulePage('purchases');
         }catch(e){toast(e.message)}
       });
     document.getElementById('f_purchase_date').value=new Date().toISOString().slice(0,10);
+
+    const updatePurchaseCost=()=>{
+      const qty=Number(document.getElementById('f_qty_actual')?.value||0);
+      const price=Number(document.getElementById('f_unit_price')?.value||0);
+      const freight=Number(document.getElementById('f_freight_cost')?.value||0);
+      const goods=qty*price,total=goods+freight,hpp=qty?total/qty:0;
+      const el=document.getElementById('purchaseCostSummary');
+      if(el)el.innerHTML=`Nilai barang: ${money(goods)}<br>Ongkir: ${money(freight)}<br><b>Total modal lot: ${money(total)}</b><br>HPP lot: ${money(hpp)} / satuan`;
+    };
+    ['f_qty_invoice','f_qty_actual','f_unit_price','f_freight_cost'].forEach(id=>{
+      document.getElementById(id).addEventListener('input',updatePurchaseCost);
+    });
     // Prefer actual qty = invoice qty for fast entry.
-    document.getElementById('f_qty_invoice').oninput=e=>{if(!document.getElementById('f_qty_actual').value)document.getElementById('f_qty_actual').value=e.target.value}
+    document.getElementById('f_qty_invoice').oninput=e=>{
+      if(!document.getElementById('f_qty_actual').value)document.getElementById('f_qty_actual').value=e.target.value;
+      updatePurchaseCost();
+    };
+    updatePurchaseCost();
   }catch(e){toast(e.message)}
 }
 
