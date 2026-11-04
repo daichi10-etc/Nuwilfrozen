@@ -39,6 +39,26 @@
 .pill{background:rgba(255,255,255,.09)!important;border-color:rgba(255,255,255,.12)!important}
 .connection .dot.on{background:#32c48d;box-shadow:0 0 0 4px rgba(50,196,141,.12)}
 </style>
+
+<style>
+/* NUWIL employee-friendly UX layer */
+.form select,.form textarea,.form input{border:1px solid var(--line);border-radius:9px;padding:10px;font-size:11px;outline:0;background:#fff;color:var(--text)}
+.form textarea{min-height:80px;resize:vertical}
+.helper{font-size:9px;color:var(--muted);line-height:1.5}
+.form-section{grid-column:1/-1;background:#f7faf8;border:1px solid #e3ebe7;border-radius:10px;padding:12px}
+.form-section b{font-size:10px;color:var(--charcoal)}
+.inline-add{display:flex;gap:7px;align-items:end}
+.inline-add .field{flex:1}
+.btn.mini{padding:8px 10px;font-size:9px}
+.hidden-tech{display:none!important}
+.select-wrap{display:flex;gap:7px}
+.select-wrap select{flex:1}
+.quick-note{background:#edf8f3;border:1px solid #d5eee4;border-radius:10px;padding:11px;font-size:10px;color:#426257;line-height:1.55;margin-bottom:12px}
+.detail-card{border:1px solid var(--line);border-radius:11px;padding:12px;background:#fff}
+.detail-card .muted{color:var(--muted);font-size:9px}
+.detail-card b{font-size:12px}
+</style>
+
 </head>
 <body>
 <div class="layout"><aside class="sidebar" id="sidebar">
@@ -67,34 +87,204 @@ async function inventory(){conn('wait');app.innerHTML='<div class="panel empty">
 async function master(page){const c=masters[page];conn('wait');app.innerHTML='<div class="panel empty">Memuat data...</div>';try{const j=await get({action:'list',table:c.table,limit:300}),rows=j.data||[];conn('on');app.innerHTML=`<div class="toolbar"><input class="search" id="q" placeholder="Cari ${c.label.toLowerCase()}..."><button class="btn primary" onclick="openForm('${page}')">+ Tambah ${c.label}</button></div><div class="tablebox"><table><thead><tr>${c.cols.map(x=>`<th>${label(x)}</th>`).join('')}<th>Aksi</th></tr></thead><tbody id="tb"></tbody></table></div>`;const draw=()=>{const q=(document.getElementById('q').value||'').toLowerCase(),rr=rows.filter(x=>JSON.stringify(x).toLowerCase().includes(q));document.getElementById('tb').innerHTML=rr.length?rr.map(x=>`<tr>${c.cols.map(k=>`<td>${k==='status'?`<span class="badge">${esc(x[k]||'-')}</span>`:esc(x[k]??'')}</td>`).join('')}<td><button class="btn soft" onclick="toast('Edit akan kita aktifkan setelah alur master stabil')">Edit</button></td></tr>`).join(''):`<tr><td colspan="${c.cols.length+1}" class="empty">Belum ada data.</td></tr>`};draw();document.getElementById('q').oninput=draw}catch(e){conn('off');app.innerHTML=`<div class="error">${esc(e.message)}</div>`}}
 function openForm(page){const c=masters[page],fields=page==='products'?[['code','Kode'],['name','Nama Produk'],['product_type','Tipe Produk'],['min_stock','Minimum Stok']]:page==='categories'?[['code','Kode'],['name','Nama Kategori'],['type','Tipe']]:page==='suppliers'?[['code','Kode'],['name','Nama Supplier'],['phone','Telepon'],['address','Alamat']]:[['code','Kode'],['name','Nama Customer'],['customer_type','Tipe Customer']];document.body.insertAdjacentHTML('beforeend',`<div class="modal-bg" id="modal"><div class="modal"><div class="modal-head"><b>Tambah ${c.label}</b><button class="close" onclick="closeModal()">×</button></div><div class="form">${fields.map(f=>`<div class="field ${f[0]==='address'?'full':''}"><label>${f[1]}</label><input id="f_${f[0]}"></div>`).join('')}</div><div class="modal-actions"><button class="btn soft" onclick="closeModal()">Batal</button><button class="btn primary" onclick="saveMaster('${page}')">Simpan</button></div></div></div>`)}
 async function saveMaster(page){const c=masters[page],data={};document.querySelectorAll('#modal input').forEach(x=>data[x.id.slice(2)]=x.value.trim());if(!data.name){toast('Nama wajib diisi');return}data.status='ACTIVE';if(page==='products'){data.category_id='';data.unit_id='';data.product_type=data.product_type||'RAW';data.track_lot=true;data.track_batch=false;data.min_stock=Number(data.min_stock||0)}try{await post({action:'create',table:c.table,data});closeModal();toast('Data tersimpan');master(page)}catch(e){toast(e.message)}}function closeModal(){document.getElementById('modal')?.remove()}
-function modulePage(page){
-  if(page==='purchases') return purchasesPage();
-  if(page==='processing') return operationalPage('processing');
-  if(page==='production') return operationalPage('production');
-  if(page==='supply') return operationalPage('supply');
-  if(page==='finance') return operationalPage('finance');
-  conn('on');
+function modulePage(page){conn('on');app.innerHTML=`<div class="grid"><div class="panel"><div class="panel-head"><div><div class="panel-title">${pages[page][0]}</div><div class="panel-sub">${pages[page][1]}</div></div></div><div class="empty">Modul ini kita bangun bertahap dengan tampilan yang sama. Backend NUWIL sudah terhubung.</div></div><div class="panel"><div class="panel-title">Koneksi Sistem</div><div class="rows"><div class="row"><span>Backend</span><b>Online</b></div><div class="row"><span>Database</span><b>Google Sheets</b></div></div></div></div>`}
+
+/* ===== EMPLOYEE-FRIENDLY MODULES ===== */
+const cache={};
+async function loadMasterRows(table){
+  if(cache[table]) return cache[table];
+  const j=await get({action:'list',table,limit:500});
+  cache[table]=j.data||[];
+  return cache[table];
+}
+function humanCode(prefix){
+  const d=new Date(),p=n=>String(n).padStart(2,'0');
+  return `${prefix}-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${String(Date.now()).slice(-3)}`;
+}
+function selectOptions(rows,valueField,labelFn,empty='Pilih...'){
+  return `<option value="">${empty}</option>`+rows.map(r=>`<option value="${esc(r[valueField]??'')}">${esc(labelFn(r))}</option>`).join('');
+}
+function fieldHTML(id,labelText,type='text',opts=''){
+  if(type==='select') return `<div class="field"><label>${labelText}</label><select id="f_${id}">${opts}</select></div>`;
+  if(type==='textarea') return `<div class="field full"><label>${labelText}</label><textarea id="f_${id}" placeholder="Opsional"></textarea></div>`;
+  return `<div class="field"><label>${labelText}</label><input id="f_${id}" type="${type}"></div>`;
+}
+function openEmployeeModal(titleText,body,saveFn){
+  document.body.insertAdjacentHTML('beforeend',`<div class="modal-bg" id="modal"><div class="modal"><div class="modal-head"><b>${titleText}</b><button class="close" onclick="closeModal()">×</button></div>${body}<div class="modal-actions"><button class="btn soft" onclick="closeModal()">Batal</button><button class="btn primary" id="modalSave">Simpan</button></div></div></div>`);
+  document.getElementById('modalSave').onclick=saveFn;
+}
+function clearCache(){Object.keys(cache).forEach(k=>delete cache[k])}
+
+async function supplierForm(){
+  openEmployeeModal('Tambah Supplier',`<div class="quick-note">Cukup masukkan nama supplier. Kode supplier dibuat otomatis oleh sistem. Nomor HP dan alamat boleh diisi nanti.</div><div class="form">
+    ${fieldHTML('name','Nama Supplier')}
+    ${fieldHTML('phone','Nomor HP','tel')}
+    ${fieldHTML('address','Alamat','textarea')}
+    ${fieldHTML('notes','Keterangan','textarea')}
+  </div>`,async()=>{
+    const name=document.getElementById('f_name').value.trim();
+    if(!name){toast('Nama supplier wajib diisi');return}
+    try{
+      await post({action:'create',table:'MST_SUPPLIER',data:{
+        code:humanCode('SUP'),name,phone:document.getElementById('f_phone').value.trim(),
+        address:document.getElementById('f_address').value.trim(),status:'ACTIVE',
+        notes:document.getElementById('f_notes').value.trim()
+      }});
+      clearCache();closeModal();toast('Supplier tersimpan');master('suppliers');
+    }catch(e){toast(e.message)}
+  });
 }
 
-const moduleConfig={
-  processing:{title:'Sorting / Processing',table:'PROCESSING',code:'processing_code',date:'processing_date',fields:[['processing_code','Kode Proses'],['processing_date','Tanggal'],['status','Status'],['notes','Catatan']],sub:'Catat pemecahan lot, pengolahan, dan hasil proses.'},
-  production:{title:'Produksi',table:'PRODUCTION',code:'batch_code',date:'production_date',fields:[['batch_code','Kode Batch'],['production_date','Tanggal'],['product_id','Produk'],['recipe_id','Recipe ID'],['output_qty','Qty Output'],['output_unit_id','Satuan Output'],['status','Status'],['notes','Catatan']],sub:'Catat batch produksi dan dasar HPP.'},
-  supply:{title:'Supply Toka',table:'SUPPLY',code:'supply_code',date:'supply_date',fields:[['supply_code','Kode Supply'],['supply_date','Tanggal'],['customer_id','Customer'],['total_amount','Total Penjualan'],['total_cost','Total HPP'],['gross_profit','Gross Profit'],['payment_status','Status Pembayaran'],['notes','Catatan']],sub:'Catat pengiriman produk NUWIL ke TOKA.'},
-  finance:{title:'Finance',table:'FINANCE_TRANSACTION',code:'transaction_code',date:'transaction_date',fields:[['transaction_code','Kode Transaksi'],['transaction_date','Tanggal'],['transaction_type','Jenis Transaksi'],['account_id','Account ID'],['amount','Nominal'],['direction','Arah IN / OUT'],['description','Keterangan']],sub:'Catat kas, modal, penarikan, dan transaksi keuangan.'}
-};
+async function purchaseForm(){
+  try{
+    const [suppliers,products,units]=await Promise.all([
+      loadMasterRows('MST_SUPPLIER'),loadMasterRows('MST_PRODUCT'),loadMasterRows('MST_UNIT')
+    ]);
+    const unitOpts=selectOptions(units,'id',x=>x.name||x.code,'Pilih satuan...');
+    openEmployeeModal('Pembelian Bahan Baku',
+      `<div class="quick-note"><b>No. Pembelian dibuat otomatis.</b><br>Karyawan cukup pilih supplier, barang, jumlah, dan harga. Tidak perlu mengisi ID supplier atau ID produk.</div>
+       <div class="form">
+        ${fieldHTML('supplier','Supplier','select',selectOptions(suppliers,'id',x=>x.name,'Pilih supplier...'))}
+        <div class="field"><label></label><button class="btn soft mini" type="button" onclick="supplierForm()">+ Supplier Baru</button></div>
+        ${fieldHTML('purchase_date','Tanggal','date')}
+        ${fieldHTML('product','Barang','select',selectOptions(products,'id',x=>x.name,'Pilih barang...'))}
+        ${fieldHTML('qty_invoice','Qty Invoice','number')}
+        ${fieldHTML('qty_actual','Qty Aktual','number')}
+        ${fieldHTML('unit','Satuan','select',unitOpts)}
+        ${fieldHTML('unit_price','Harga per Satuan','number')}
+        ${fieldHTML('payment_status','Pembayaran','select','<option value="PAID">Lunas</option><option value="UNPAID">Belum Lunas</option><option value="PARTIAL">Sebagian</option>')}
+        ${fieldHTML('notes','Catatan','textarea')}
+       </div>`,
+      async()=>{
+        const supplier=document.getElementById('f_supplier').value;
+        const product=document.getElementById('f_product').value;
+        const qtyActual=Number(document.getElementById('f_qty_actual').value||0);
+        const qtyInvoice=Number(document.getElementById('f_qty_invoice').value||0);
+        const unit=document.getElementById('f_unit').value;
+        const price=Number(document.getElementById('f_unit_price').value||0);
+        if(!supplier||!product||!qtyActual||!unit||!price){toast('Supplier, barang, qty aktual, satuan, dan harga wajib diisi');return}
+        const code=humanCode('PO');
+        try{
+          const h=await post({action:'create',table:'PURCHASE',data:{
+            purchase_code:code,supplier_id:supplier,purchase_date:document.getElementById('f_purchase_date').value,
+            invoice_qty:qtyInvoice,actual_qty:qtyActual,unit_id:unit,total_amount:qtyActual*price,
+            payment_status:document.getElementById('f_payment_status').value,notes:document.getElementById('f_notes').value.trim()
+          }});
+          await post({action:'create',table:'PURCHASE_DETAIL',data:{
+            purchase_id:h.data?.id||h.id||code,product_id:product,qty_invoice:qtyInvoice,qty_actual:qtyActual,
+            unit_id:unit,unit_price:price,total_cost:qtyActual*price,lot_id:''
+          }});
+          closeModal();toast(`Pembelian ${code} tersimpan`);modulePage('purchases');
+        }catch(e){toast(e.message)}
+      });
+    document.getElementById('f_purchase_date').value=new Date().toISOString().slice(0,10);
+    // Prefer actual qty = invoice qty for fast entry.
+    document.getElementById('f_qty_invoice').oninput=e=>{if(!document.getElementById('f_qty_actual').value)document.getElementById('f_qty_actual').value=e.target.value}
+  }catch(e){toast(e.message)}
+}
 
-function fieldHtml(f){const n=f[0],l=f[1];if(n==='status')return `<div class="field"><label>${l}</label><select id="mf_${n}"><option value="ACTIVE">ACTIVE</option><option value="DRAFT">DRAFT</option><option value="DONE">DONE</option></select></div>`;if(n==='payment_status')return `<div class="field"><label>${l}</label><select id="mf_${n}"><option value="PAID">PAID</option><option value="UNPAID">UNPAID</option><option value="PARTIAL">PARTIAL</option></select></div>`;if(n==='direction')return `<div class="field"><label>${l}</label><select id="mf_${n}"><option value="IN">IN</option><option value="OUT">OUT</option></select></div>`;if(n.endsWith('_date'))return `<div class="field"><label>${l}</label><input type="date" id="mf_${n}" value="${new Date().toISOString().slice(0,10)}"></div>`;if(['notes','description'].includes(n))return `<div class="field full"><label>${l}</label><input id="mf_${n}"></div>`;return `<div class="field"><label>${l}</label><input id="mf_${n}" type="${['amount','total_amount','total_cost','gross_profit','output_qty'].includes(n)?'number':'text'}"></div>`}
+async function genericOperationForm(page){
+  const configs={
+    processing:{title:'Sorting / Processing',note:'Pilih bahan berdasarkan nama/lot. Kode proses dibuat otomatis.',table:'PROCESSING'},
+    production:{title:'Produksi Frozen',note:'Pilih produk jadi. Batch produksi dibuat otomatis.',table:'PRODUCTION'},
+    supply:{title:'Supply ke TOKA',note:'TOKA sudah menjadi customer internal NUWIL. Karyawan cukup pilih produk dan jumlah.',table:'SUPPLY'},
+    finance:{title:'Transaksi Finance',note:'Pilih akun berdasarkan nama. ID akun tidak perlu diketahui karyawan.',table:'FINANCE_TRANSACTION'}
+  };
+  const c=configs[page];
+  const [products,customers,accounts]=await Promise.all([
+    loadMasterRows('MST_PRODUCT'),loadMasterRows('MST_CUSTOMER'),loadMasterRows('MST_ACCOUNT')
+  ]);
+  let body='';
+  if(page==='processing'){
+    const lots=await loadMasterRows('LOT');
+    body=`<div class="quick-note">${c.note}</div><div class="form">
+      ${fieldHTML('processing_date','Tanggal','date')}
+      ${fieldHTML('source_lot','Lot Bahan','select',selectOptions(lots,'id',x=>`${x.lot_code||'-'} • ${x.qty_current||0} ${x.unit_id||''}`,'Pilih lot...'))}
+      ${fieldHTML('qty_used','Qty Diproses','number')}
+      ${fieldHTML('notes','Catatan','textarea')}
+    </div>`;
+  }else if(page==='production'){
+    body=`<div class="quick-note">${c.note}</div><div class="form">
+      ${fieldHTML('production_date','Tanggal','date')}
+      ${fieldHTML('product','Produk Jadi','select',selectOptions(products,'id',x=>x.name,'Pilih produk...'))}
+      ${fieldHTML('output_qty','Hasil Produksi','number')}
+      ${fieldHTML('notes','Catatan','textarea')}
+    </div>`;
+  }else if(page==='supply'){
+    body=`<div class="quick-note">${c.note}</div><div class="form">
+      ${fieldHTML('supply_date','Tanggal','date')}
+      ${fieldHTML('customer','Customer','select',selectOptions(customers,'id',x=>x.name,'Pilih customer...'))}
+      ${fieldHTML('product','Produk','select',selectOptions(products,'id',x=>x.name,'Pilih produk...'))}
+      ${fieldHTML('qty','Qty','number')}
+      ${fieldHTML('unit_price','Harga Jual','number')}
+      ${fieldHTML('payment_status','Pembayaran','select','<option value="PAID">Lunas</option><option value="UNPAID">Belum Lunas</option><option value="PARTIAL">Sebagian</option>')}
+      ${fieldHTML('notes','Catatan','textarea')}
+    </div>`;
+  }else{
+    body=`<div class="quick-note">${c.note}</div><div class="form">
+      ${fieldHTML('transaction_date','Tanggal','date')}
+      ${fieldHTML('transaction_type','Jenis','select','<option value="INCOME">Pemasukan</option><option value="EXPENSE">Pengeluaran</option><option value="CAPITAL">Modal</option><option value="WITHDRAWAL">Prive</option>')}
+      ${fieldHTML('account','Akun','select',selectOptions(accounts,'id',x=>x.name,'Pilih akun...'))}
+      ${fieldHTML('amount','Nominal','number')}
+      ${fieldHTML('direction','Arus','select','<option value="IN">Masuk</option><option value="OUT">Keluar</option>')}
+      ${fieldHTML('description','Keterangan','textarea')}
+    </div>`;
+  }
+  openEmployeeModal(c.title,body,async()=>{
+    try{
+      let data={};
+      if(page==='processing'){
+        const code=humanCode('PRC');
+        data={processing_code:code,processing_date:document.getElementById('f_processing_date').value,status:'DRAFT',notes:document.getElementById('f_notes').value.trim()};
+      }else if(page==='production'){
+        const code=humanCode('BAT');
+        data={batch_code:code,production_date:document.getElementById('f_production_date').value,product_id:document.getElementById('f_product').value,output_qty:Number(document.getElementById('f_output_qty').value||0),output_unit_id:'',total_cost:0,unit_cost:0,status:'DRAFT',notes:document.getElementById('f_notes').value.trim()};
+      }else if(page==='supply'){
+        const code=humanCode('SUPPLY');
+        const qty=Number(document.getElementById('f_qty').value||0),price=Number(document.getElementById('f_unit_price').value||0);
+        data={supply_code:code,supply_date:document.getElementById('f_supply_date').value,customer_id:document.getElementById('f_customer').value,total_amount:qty*price,total_cost:0,gross_profit:qty*price,payment_status:document.getElementById('f_payment_status').value,payment_account_id:'',notes:document.getElementById('f_notes').value.trim()};
+      }else{
+        data={transaction_code:humanCode('TRX'),transaction_date:document.getElementById('f_transaction_date').value,transaction_type:document.getElementById('f_transaction_type').value,account_id:document.getElementById('f_account').value,amount:Number(document.getElementById('f_amount').value||0),direction:document.getElementById('f_direction').value,description:document.getElementById('f_description').value.trim()};
+      }
+      await post({action:'create',table:c.table,data});
+      closeModal();toast('Data tersimpan');modulePage(page);
+    }catch(e){toast(e.message)}
+  });
+  const dateId=page==='finance'?'transaction_date':page==='supply'?'supply_date':page==='production'?'production_date':'processing_date';
+  document.getElementById('f_'+dateId).value=new Date().toISOString().slice(0,10);
+}
 
-async function operationalPage(page){const c=moduleConfig[page];conn('wait');app.innerHTML=`<div class="toolbar"><div><div class="panel-title">${c.title}</div><div class="subtitle">${c.sub}</div></div><button class="btn primary" onclick="openOperationalForm('${page}')">+ Tambah ${c.title}</button></div><div class="tablebox"><table><thead><tr>${c.fields.map(f=>`<th>${label(f[0])}</th>`).join('')}<th>Aksi</th></tr></thead><tbody id="moduleTb"><tr><td colspan="${c.fields.length+1}" class="empty">Memuat...</td></tr></tbody></table></div>`;try{const j=await get({action:'list',table:c.table,limit:300}),rows=j.data||[];conn('on');document.getElementById('moduleTb').innerHTML=rows.length?rows.map(x=>`<tr>${c.fields.map(f=>`<td>${f[0].includes('amount')||f[0].includes('cost')||f[0].includes('profit')||f[0]==='gross_profit'?money(x[f[0]]):esc(x[f[0]]??'')}</td>`).join('')}<td><button class="btn soft" onclick="toast('Detail/edit menyusul setelah alur transaksi stabil')">Lihat</button></td></tr>`).join(''):`<tr><td colspan="${c.fields.length+1}" class="empty">Belum ada data.</td></tr>`}catch(e){conn('off');app.innerHTML=`<div class="error">${esc(e.message)}</div>`}}
+async function modulePage(page){
+  conn('on');
+  if(page==='purchases'){
+    app.innerHTML=`<div class="toolbar"><input class="search" id="q" placeholder="Cari nomor pembelian atau supplier..."><button class="btn primary" onclick="purchaseForm()">+ Pembelian Baru</button></div><div class="quick-note">Operator tidak perlu tahu ID pembelian, ID supplier, atau UUID. Semua nomor dibuat otomatis oleh sistem.</div><div class="tablebox"><table><thead><tr><th>No Pembelian</th><th>Tanggal</th><th>Supplier</th><th>Qty Aktual</th><th>Total</th><th>Pembayaran</th></tr></thead><tbody id="tb"><tr><td colspan="6" class="empty">Memuat...</td></tr></tbody></table></div>`;
+    try{
+      const [rows,suppliers]=await Promise.all([get({action:'list',table:'PURCHASE',limit:300}).then(x=>x.data||[]),loadMasterRows('MST_SUPPLIER')]);
+      const sm=Object.fromEntries(suppliers.map(x=>[x.id,x.name]));
+      const draw=()=>{const q=(document.getElementById('q').value||'').toLowerCase(),rr=rows.filter(x=>`${x.purchase_code||''} ${sm[x.supplier_id]||''}`.toLowerCase().includes(q));document.getElementById('tb').innerHTML=rr.length?rr.map(x=>`<tr><td><b>${esc(x.purchase_code||'-')}</b></td><td>${esc(x.purchase_date||'-')}</td><td>${esc(sm[x.supplier_id]||'Supplier')}</td><td>${num(x.actual_qty)} ${esc(x.unit_id||'')}</td><td>${money(x.total_amount)}</td><td><span class="badge">${esc(x.payment_status||'-')}</span></td></tr>`).join(''):'<tr><td colspan="6" class="empty">Belum ada pembelian.</td></tr>'};draw();document.getElementById('q').oninput=draw;
+    }catch(e){app.innerHTML=`<div class="error">${esc(e.message)}</div>`}
+    return;
+  }
+  if(['processing','production','supply','finance'].includes(page)){
+    app.innerHTML=`<div class="toolbar"><div></div><button class="btn primary" onclick="genericOperationForm('${page}')">+ Input ${pages[page][0]}</button></div><div class="quick-note">Tampilan ini sengaja dibuat sederhana untuk karyawan. Detail ID, UUID, dan relasi database dikelola sistem di belakang layar.</div><div class="panel empty">Belum ada tampilan riwayat yang diaktifkan pada layar ini. Gunakan tombol input untuk mencatat transaksi.</div>`;
+    return;
+  }
+  app.innerHTML=`<div class="panel empty">${pages[page][0]} siap digunakan.</div>`;
+}
 
-function openOperationalForm(page){const c=moduleConfig[page];document.body.insertAdjacentHTML('beforeend',`<div class="modal-bg" id="modal"><div class="modal wide"><div class="modal-head"><b>Tambah ${c.title}</b><button class="close" onclick="closeModal()">×</button></div><div class="form">${c.fields.map(fieldHtml).join('')}</div><div class="modal-actions"><button class="btn soft" onclick="closeModal()">Batal</button><button class="btn primary" onclick="saveOperational('${page}')">Simpan</button></div></div></div>`)}
+/* Supplier page: human-readable, no forced code entry */
+async function master(page){
+  const c=masters[page];conn('wait');app.innerHTML='<div class="panel empty">Memuat data...</div>';
+  try{
+    const rows=await loadMasterRows(c.table);conn('on');
+    if(page==='suppliers'){
+      app.innerHTML=`<div class="toolbar"><input class="search" id="q" placeholder="Cari nama supplier..."><button class="btn primary" onclick="supplierForm()">+ Supplier Baru</button></div><div class="quick-note">Daftar supplier tampil di aplikasi. Kode supplier dibuat otomatis dan tidak perlu diketahui saat transaksi.</div><div class="tablebox"><table><thead><tr><th>Supplier</th><th>No. HP</th><th>Alamat</th><th>Status</th></tr></thead><tbody id="tb"></tbody></table></div>`;
+      const draw=()=>{const q=(document.getElementById('q').value||'').toLowerCase(),rr=rows.filter(x=>JSON.stringify(x).toLowerCase().includes(q));document.getElementById('tb').innerHTML=rr.length?rr.map(x=>`<tr><td><b>${esc(x.name||'-')}</b><div class="muted">${esc(x.code||'')}</div></td><td>${esc(x.phone||'-')}</td><td>${esc(x.address||'-')}</td><td><span class="badge">${esc(x.status||'-')}</span></td></tr>`).join(''):'<tr><td colspan="4" class="empty">Belum ada supplier.</td></tr>'};draw();document.getElementById('q').oninput=draw;return;
+    }
+    app.innerHTML=`<div class="toolbar"><input class="search" id="q" placeholder="Cari ${c.label.toLowerCase()}..."><button class="btn primary" onclick="openForm('${page}')">+ Tambah ${c.label}</button></div><div class="tablebox"><table><thead><tr>${c.cols.map(x=>`<th>${label(x)}</th>`).join('')}</tr></thead><tbody id="tb"></tbody></table></div>`;
+    const draw=()=>{const q=(document.getElementById('q').value||'').toLowerCase(),rr=rows.filter(x=>JSON.stringify(x).toLowerCase().includes(q));document.getElementById('tb').innerHTML=rr.length?rr.map(x=>`<tr>${c.cols.map(k=>`<td>${k==='status'?`<span class="badge">${esc(x[k]||'-')}</span>`:esc(x[k]??'')}</td>`).join('')}</tr>`).join(''):'<tr><td colspan="'+c.cols.length+'" class="empty">Belum ada data.</td></tr>'};draw();document.getElementById('q').oninput=draw;
+  }catch(e){conn('off');app.innerHTML=`<div class="error">${esc(e.message)}</div>`}
+}
 
-async function saveOperational(page){const c=moduleConfig[page],data={};c.fields.forEach(f=>{const el=document.getElementById('mf_'+f[0]);data[f[0]]=el?el.value.trim():''});if(!data[c.code]){toast('Kode wajib diisi');return}if(!data[c.date]){toast('Tanggal wajib diisi');return}for(const k of Object.keys(data)){if(['amount','total_amount','total_cost','gross_profit','output_qty'].includes(k))data[k]=Number(data[k]||0)}data.id=undefined;try{await post({action:'create',table:c.table,data});closeModal();toast('Data tersimpan');operationalPage(page)}catch(e){toast(e.message)}}
-
-async function purchasesPage(){conn('wait');app.innerHTML=`<div class="toolbar"><div><div class="panel-title">Pembelian</div><div class="subtitle">Penerimaan bahan baku dan supplier. Pembelian baru langsung siap dicatat.</div></div><button class="btn primary" onclick="openPurchaseForm()">+ Tambah Pembelian</button></div><div class="tablebox"><table><thead><tr><th>Kode</th><th>Tanggal</th><th>Supplier</th><th>Qty Invoice</th><th>Qty Aktual</th><th>Total</th><th>Status</th></tr></thead><tbody id="purchaseTb"><tr><td colspan="7" class="empty">Memuat...</td></tr></tbody></table></div>`;try{const j=await get({action:'list',table:'PURCHASE',limit:300}),rows=j.data||[];conn('on');document.getElementById('purchaseTb').innerHTML=rows.length?rows.map(x=>`<tr><td>${esc(x.purchase_code)}</td><td>${esc(x.purchase_date)}</td><td>${esc(x.supplier_id)}</td><td>${num(x.invoice_qty)}</td><td>${num(x.actual_qty)}</td><td>${money(x.total_amount)}</td><td><span class="badge">${esc(x.payment_status||'-')}</span></td></tr>`).join(''):`<tr><td colspan="7" class="empty">Belum ada pembelian.</td></tr>`}catch(e){conn('off');app.innerHTML=`<div class="error">${esc(e.message)}</div>`}}
-
-function openPurchaseForm(){document.body.insertAdjacentHTML('beforeend',`<div class="modal-bg" id="modal"><div class="modal wide"><div class="modal-head"><b>Tambah Pembelian</b><button class="close" onclick="closeModal()">×</button></div><div class="form"><div class="field"><label>Kode Pembelian</label><input id="p_code" placeholder="PO-041126-001"></div><div class="field"><label>Tanggal</label><input type="date" id="p_date" value="${new Date().toISOString().slice(0,10)}"></div><div class="field"><label>Supplier ID</label><input id="p_supplier" placeholder="ID Supplier"></div><div class="field"><label>Produk ID</label><input id="p_product" placeholder="ID Produk"></div><div class="field"><label>Qty Invoice</label><input type="number" id="p_invoice" step="0.001"></div><div class="field"><label>Qty Aktual</label><input type="number" id="p_actual" step="0.001"></div><div class="field"><label>Satuan ID</label><input id="p_unit" placeholder="KG / PCS"></div><div class="field"><label>Harga Satuan</label><input type="number" id="p_price"></div><div class="field"><label>Total Pembelian</label><input type="number" id="p_total"></div><div class="field"><label>Status Pembayaran</label><select id="p_status"><option value="PAID">PAID</option><option value="UNPAID">UNPAID</option><option value="PARTIAL">PARTIAL</option></select></div><div class="field"><label>Payment Account ID</label><input id="p_account" placeholder="CASH / BANK"></div><div class="field"><label>Lot Code</label><input id="p_lot" placeholder="CUM-041126-001"></div><div class="field full"><label>Catatan</label><input id="p_notes"></div></div><div class="modal-actions"><button class="btn soft" onclick="closeModal()">Batal</button><button class="btn primary" onclick="savePurchase()">Simpan Pembelian</button></div></div></div>`);document.getElementById('p_price').oninput=calcPurchase;document.getElementById('p_actual').oninput=calcPurchase}
-function calcPurchase(){const q=Number(document.getElementById('p_actual')?.value||0),p=Number(document.getElementById('p_price')?.value||0);const t=document.getElementById('p_total');if(t&&!t.value)t.value=q*p}
-async function savePurchase(){const v=id=>document.getElementById(id)?.value.trim();const actual=Number(v('p_actual')||0),invoice=Number(v('p_invoice')||0),price=Number(v('p_price')||0),total=Number(v('p_total')||actual*price);if(!v('p_code')||!v('p_date')||!v('p_supplier')||!v('p_product')||!actual){toast('Kode, tanggal, supplier, produk, dan qty aktual wajib diisi');return}try{const purchase=await post({action:'create',table:'PURCHASE',data:{purchase_code:v('p_code'),supplier_id:v('p_supplier'),purchase_date:v('p_date'),invoice_qty:invoice,actual_qty:actual,unit_id:v('p_unit'),total_amount:total,payment_status:v('p_status'),payment_account_id:v('p_account'),notes:v('p_notes')}});const pid=purchase.data?.id||purchase.data?.ID||'';await post({action:'create',table:'PURCHASE_DETAIL',data:{purchase_id:pid,product_id:v('p_product'),qty_invoice:invoice,qty_actual:actual,unit_id:v('p_unit'),unit_price:price,total_cost:total,lot_id:''}});if(v('p_lot')){await post({action:'create',table:'LOT',data:{lot_code:v('p_lot'),product_id:v('p_product'),source_type:'PURCHASE',source_ref:pid,qty_in:actual,qty_current:actual,unit_id:v('p_unit'),unit_cost:actual?total/actual:0,total_cost:total,received_at:v('p_date'),status:'ACTIVE',parent_lot_id:''}})}closeModal();toast('Pembelian tersimpan');purchasesPage()}catch(e){toast(e.message)}}
 go('dashboard');
 </script></body></html>
