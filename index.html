@@ -166,7 +166,8 @@ async function purchaseForm(){
     ]);
     const unitOpts=selectOptions(units,'id',x=>x.name||x.code,'Pilih satuan...');
     openEmployeeModal('Pembelian Bahan Baku',
-      `<div class="form">
+      `<div class="quick-note"><b>Harga bisa diinput sebagai total transaksi atau harga per satuan.</b><br>Kalau supplier memberi harga langsung, misalnya 7,010 kg = Rp320.000, pilih <b>Total Pembelian</b>. HPP per satuan dihitung otomatis oleh sistem.</div>
+       <div class="form">
         ${fieldHTML('supplier','Supplier','select',selectOptions(suppliers,'id',x=>x.name,'Pilih supplier...'))}
         <div class="field"><label></label><button class="btn soft mini" type="button" onclick="supplierForm()">+ Supplier Baru</button></div>
         ${fieldHTML('purchase_date','Tanggal','date')}
@@ -174,7 +175,10 @@ async function purchaseForm(){
         ${fieldHTML('qty_invoice','Qty Invoice','number')}
         ${fieldHTML('qty_actual','Qty Aktual','number')}
         ${fieldHTML('unit','Satuan','select',unitOpts)}
-        ${fieldHTML('unit_price','Harga per Satuan','number')}
+        ${fieldHTML('price_mode','Cara Input Harga','select','<option value="UNIT">Harga per Satuan</option><option value="TOTAL">Total Pembelian</option>')}
+        <div class="field" id="unitPriceField">${fieldHTML('unit_price','Harga per Satuan','number')}</div>
+        <div class="field" id="totalPriceField" style="display:none">${fieldHTML('total_purchase','Total Pembelian','number')}</div>
+        <div class="field full"><div class="quick-note" id="effectiveUnitPrice">HPP barang per satuan: Rp0</div></div>
         ${fieldHTML('freight_cost','Ongkir / Biaya Angkut','number')}
         <div class="field full"><div class="quick-note" id="purchaseCostSummary">Nilai barang: Rp0<br>Ongkir: Rp0<br><b>Total modal lot: Rp0</b><br>HPP lot: Rp0 / satuan</div></div>
         ${fieldHTML('payment_status','Pembayaran','select','<option value="PAID">Lunas</option><option value="UNPAID">Belum Lunas</option><option value="PARTIAL">Sebagian</option>')}
@@ -186,14 +190,17 @@ async function purchaseForm(){
         const qtyActual=Number(document.getElementById('f_qty_actual').value||0);
         const qtyInvoice=Number(document.getElementById('f_qty_invoice').value||0);
         const unit=document.getElementById('f_unit').value;
-        const price=Number(document.getElementById('f_unit_price').value||0);
+        const mode=document.getElementById('f_price_mode').value;
+        const unitPriceInput=Number(document.getElementById('f_unit_price').value||0);
+        const totalPurchaseInput=Number(document.getElementById('f_total_purchase').value||0);
         const freight=Number(document.getElementById('f_freight_cost').value||0);
-        if(!supplier||!product||!qtyActual||!unit||!price){toast('Supplier, barang, qty aktual, satuan, dan harga wajib diisi');return}
+        const goodsCost=mode==='TOTAL'?totalPurchaseInput:(qtyActual*unitPriceInput);
+        const price=qtyActual?goodsCost/qtyActual:0;
+        if(!supplier||!product||!qtyActual||!unit||goodsCost<=0){toast('Supplier, barang, qty aktual, satuan, dan nilai pembelian wajib diisi');return}
         if(freight<0){toast('Ongkir tidak boleh negatif');return}
 
         const productRow=products.find(x=>x.id===product);
         const code=humanCode('PO');
-        const goodsCost=qtyActual*price;
         const landedCost=goodsCost+freight;
         const landedUnitCost=qtyActual?landedCost/qtyActual:0;
         const d=new Date(document.getElementById('f_purchase_date').value||new Date());
@@ -226,20 +233,33 @@ async function purchaseForm(){
 
     const updatePurchaseCost=()=>{
       const qty=Number(document.getElementById('f_qty_actual')?.value||0);
-      const price=Number(document.getElementById('f_unit_price')?.value||0);
+      const mode=document.getElementById('f_price_mode')?.value||'UNIT';
+      const unitPrice=Number(document.getElementById('f_unit_price')?.value||0);
+      const totalPurchase=Number(document.getElementById('f_total_purchase')?.value||0);
       const freight=Number(document.getElementById('f_freight_cost')?.value||0);
-      const goods=qty*price,total=goods+freight,hpp=qty?total/qty:0;
+      const goods=mode==='TOTAL'?totalPurchase:(qty*unitPrice),total=goods+freight,hpp=qty?total/qty:0,effective=qty?(goods/qty):0;
       const el=document.getElementById('purchaseCostSummary');
+      const ep=document.getElementById('effectiveUnitPrice');
+      if(ep)ep.innerHTML=`HPP barang per satuan: <b>${money(effective)}</b>`;
       if(el)el.innerHTML=`Nilai barang: ${money(goods)}<br>Ongkir: ${money(freight)}<br><b>Total modal lot: ${money(total)}</b><br>HPP lot: ${money(hpp)} / satuan`;
     };
-    ['f_qty_invoice','f_qty_actual','f_unit_price','f_freight_cost'].forEach(id=>{
+    const togglePriceMode=()=>{
+      const mode=document.getElementById('f_price_mode')?.value||'UNIT';
+      const unitBox=document.getElementById('unitPriceField');
+      const totalBox=document.getElementById('totalPriceField');
+      if(unitBox)unitBox.style.display=mode==='UNIT'?'':'none';
+      if(totalBox)totalBox.style.display=mode==='TOTAL'?'':'none';
+      updatePurchaseCost();
+    };
+    document.getElementById('f_price_mode').addEventListener('change',togglePriceMode);
+    ['f_qty_invoice','f_qty_actual','f_unit_price','f_total_purchase','f_freight_cost'].forEach(id=>{
       document.getElementById(id).addEventListener('input',updatePurchaseCost);
     });
     document.getElementById('f_qty_invoice').oninput=e=>{
       if(!document.getElementById('f_qty_actual').value)document.getElementById('f_qty_actual').value=e.target.value;
       updatePurchaseCost();
     };
-    updatePurchaseCost();
+    togglePriceMode();
   }catch(e){toast(e.message)}
 }
 async function genericOperationForm(page){
