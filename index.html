@@ -244,30 +244,46 @@ async function purchaseForm(){
 }
 async function genericOperationForm(page){
   const configs={
-    processing:{title:'Sorting / Processing',note:'Pecah atau olah bahan dari lot yang sudah tersedia.',table:'PROCESSING'},
-    production:{title:'Produksi Frozen',note:'Catat produksi berdasarkan bahan yang benar-benar dipakai dan hasil aktual.',table:'PRODUCTION'},
+    processing:{title:'Sorting / Processing',note:'Pilih lot yang tersedia, tentukan qty yang diproses, lalu catat hasil proses/sortir.',table:'PROCESSING'},
+    production:{title:'Produksi Frozen',note:'Pilih bahan/lot yang benar-benar dipakai. HPP/unit diambil otomatis dari lot. Output aktual dicatat sebagai batch produksi.',table:'PRODUCTION'},
     supply:{title:'Supply ke TOKA',note:'TOKA sudah menjadi customer internal NUWIL. Karyawan cukup pilih produk dan jumlah.',table:'SUPPLY'},
     finance:{title:'Transaksi Finance',note:'Pilih akun berdasarkan nama. ID akun tidak perlu diketahui karyawan.',table:'FINANCE_TRANSACTION'}
   };
   const c=configs[page];
   try{
-    const [products,customers,accounts]=await Promise.all([
-      loadMasterRows('MST_PRODUCT'),loadMasterRows('MST_CUSTOMER'),loadMasterRows('MST_ACCOUNT')
+    const [products,customers,accounts,units,lots]=await Promise.all([
+      loadMasterRows('MST_PRODUCT'),loadMasterRows('MST_CUSTOMER'),loadMasterRows('MST_ACCOUNT'),loadMasterRows('MST_UNIT'),loadMasterRows('LOT')
     ]);
+    const activeLots=lots.filter(x=>Number(x.qty_current||0)>0 && String(x.status||'ACTIVE').toUpperCase()!=='DEPLETED');
+    const productMap=Object.fromEntries(products.map(x=>[x.id,x]));
+    const unitMap=Object.fromEntries(units.map(x=>[x.id,x]));
+    const lotLabel=x=>{
+      const pr=productMap[x.product_id];
+      const unit=unitMap[x.unit_id]?.name||x.unit_id||'';
+      return `${pr?.name||'Bahan'} • ${x.lot_code||'-'} • Sisa ${num(x.qty_current||0)} ${unit}`;
+    };
+    const lotOpts=selectOptions(activeLots,'id',lotLabel,'Pilih bahan / lot...');
+    const unitOpts=selectOptions(units,'id',x=>x.name||x.code,'Pilih satuan...');
     let body='';
+
     if(page==='processing'){
-      const lots=await loadMasterRows('LOT');
-      body=`<div class="quick-note">${c.note}</div><div class="form">
-        ${fieldHTML('processing_date','Tanggal','date')}
-        ${fieldHTML('source_lot','Lot Bahan','select',selectOptions(lots,'id',x=>`${x.lot_code||'-'} • ${x.qty_current||0} ${x.unit_id||''}`,'Pilih lot...'))}
-        ${fieldHTML('qty_used','Qty Diproses','number')}
-        ${fieldHTML('notes','Catatan','textarea')}
-      </div>`;
+      body=`<div class="quick-note">${c.note}<br><span class="muted">Lot dengan sisa 0 otomatis tidak ditawarkan sebagai bahan tersedia.</span></div>
+        <div class="section-label">Info Proses</div><div class="form">
+          ${fieldHTML('processing_date','Tanggal','date')}
+          ${fieldHTML('processing_type','Jenis Aktivitas','select','<option value="SORTING">Sorting / Pemilahan</option><option value="PROCESSING">Processing / Pengolahan</option>')}
+          ${fieldHTML('source_lot','Bahan / Lot Sumber','select',lotOpts)}
+          ${fieldHTML('qty_used','Qty Diproses','number')}
+        </div>
+        <div class="section-label">Hasil Proses</div>
+        <div id="procOutputs" class="stack"></div>
+        <button class="btn soft" type="button" onclick="addProcOutput()">+ Tambah Hasil</button>
+        <div class="proc-total panel"><div class="row"><span>Qty Input</span><b id="procInputTotal">0</b></div><div class="row"><span>Total Hasil</span><b id="procOutputTotal">0</b></div><div class="row"><span>Selisih / Susut</span><b id="procLossTotal">0</b></div></div>
+        ${fieldHTML('notes','Catatan','textarea')}`;
     }else if(page==='production'){
-      body=`<div class="quick-note"><b>Produksi dicatat sebagai batch.</b><br>HPP dihitung dari total bahan yang dipakai. Size/grade hanya mengikuti hasil aktual dan tidak dipatok berdasarkan gram.</div>
+      body=`<div class="quick-note">${c.note}<br><span class="muted">Contoh: Cumi mentah 5,27 kg + Adonan Bakso 2,065 kg. Jika adonan dibuat 7 kg sebagai stok terpisah, yang dipakai di sini hanya 2,065 kg.</span></div>
         <div class="section-label">Info Produksi</div><div class="form">
           ${fieldHTML('production_date','Tanggal','date')}
-          ${fieldHTML('production_type','Jenis Produksi','select','<option value="">Pilih jenis...</option><option value="ADONAN">Adonan Dasar</option><option value="PRODUK_JADI">Produk Jadi</option>')}
+          ${fieldHTML('production_type','Jenis Produksi','select','<option value="ADONAN">Adonan / Bahan Setengah Jadi</option><option value="PRODUK_JADI">Produk Jadi</option>')}
           ${fieldHTML('production_name','Nama Produksi','select',selectOptions(products,'id',x=>x.name,'Pilih produk...'))}
         </div>
         <div class="section-label">Bahan yang Dipakai</div>
@@ -298,55 +314,74 @@ async function genericOperationForm(page){
         ${fieldHTML('description','Keterangan','textarea')}
       </div>`;
     }
+
     openEmployeeModal(c.title,body,async()=>{
       try{
-        let data={};
         if(page==='production'){
           const code=humanCode('BAT');
-          const outputs=[...document.querySelectorAll('.prod-output')].map(r=>({name:r.querySelector('.po-name')?.value||'',size:r.querySelector('.po-size')?.value||'',qty:Number(r.querySelector('.po-qty')?.value||0),unit:r.querySelector('.po-unit')?.value||''})).filter(x=>x.name||x.qty);
-          const inputs=[...document.querySelectorAll('.prod-input')].map(r=>({name:r.querySelector('.pi-name')?.value||'',qty:Number(r.querySelector('.pi-qty')?.value||0),hpp:Number(r.querySelector('.pi-hpp')?.value||0),unit:r.querySelector('.pi-unit')?.value||''})).filter(x=>x.name||x.qty);
-          const totalCost=inputs.reduce((a,x)=>a+(x.qty*x.hpp),0);
+          const outputs=[...document.querySelectorAll('.prod-output')].map(r=>({productId:r.querySelector('.po-product')?.value||'',name:r.querySelector('.po-name')?.value||'',size:r.querySelector('.po-size')?.value||'',qty:Number(r.querySelector('.po-qty')?.value||0),unit:r.querySelector('.po-unit')?.value||''})).filter(x=>x.productId||x.name||x.qty);
+          const inputs=[...document.querySelectorAll('.prod-input')].map(r=>({lotId:r.querySelector('.pi-lot')?.value||'',qty:Number(r.querySelector('.pi-qty')?.value||0)})).filter(x=>x.lotId||x.qty);
+          const selectedLots=Object.fromEntries(activeLots.map(x=>[x.id,x]));
+          if(!document.getElementById('f_production_name').value||!outputs.length){toast('Nama produksi dan minimal satu output wajib diisi');return}
+          if(inputs.some(x=>!x.lotId||x.qty<=0)){toast('Setiap bahan harus memilih lot dan qty yang valid');return}
+          for(const x of inputs){const lot=selectedLots[x.lotId];if(!lot){toast('Lot bahan tidak ditemukan');return}if(x.qty>Number(lot.qty_current||0)){toast(`Qty melebihi sisa lot ${lot.lot_code}`);return}}
+          if(outputs.some(x=>!x.qty||x.qty<=0)){toast('Qty output wajib diisi');return}
+          const totalCost=inputs.reduce((a,x)=>{const lot=selectedLots[x.lotId];return a+(x.qty*Number(lot?.unit_cost||0))},0);
           const outputTotal=outputs.reduce((a,x)=>a+(x.qty||0),0);
-          if(!document.getElementById('f_production_name').value||!outputTotal){toast('Nama produksi dan minimal satu output wajib diisi');return}
-          data={batch_code:code,production_date:document.getElementById('f_production_date').value,product_id:document.getElementById('f_production_name').value,output_qty:outputTotal,output_unit_id:outputs[0]?.unit||'',total_cost:totalCost,unit_cost:outputTotal?totalCost/outputTotal:0,status:'DRAFT',notes:document.getElementById('f_notes').value.trim()};
-        }else if(page==='processing'){
-          const code=humanCode('PRC');
-          data={processing_code:code,processing_date:document.getElementById('f_processing_date').value,status:'DRAFT',notes:document.getElementById('f_notes').value.trim()};
-        }else if(page==='supply'){
-          const code=humanCode('SUPPLY');
-          const qty=Number(document.getElementById('f_qty').value||0),price=Number(document.getElementById('f_unit_price').value||0);
-          data={supply_code:code,supply_date:document.getElementById('f_supply_date').value,customer_id:document.getElementById('f_customer').value,total_amount:qty*price,total_cost:0,gross_profit:qty*price,payment_status:document.getElementById('f_payment_status').value,payment_account_id:'',notes:document.getElementById('f_notes').value.trim()};
-        }else{
-          data={transaction_code:humanCode('TRX'),transaction_date:document.getElementById('f_transaction_date').value,transaction_type:document.getElementById('f_transaction_type').value,account_id:document.getElementById('f_account').value,amount:Number(document.getElementById('f_amount').value||0),direction:document.getElementById('f_direction').value,description:document.getElementById('f_description').value.trim()};
+          const header=await post({action:'create',table:'PRODUCTION',data:{batch_code:code,production_date:document.getElementById('f_production_date').value,product_id:document.getElementById('f_production_name').value,output_qty:outputTotal,output_unit_id:outputs[0]?.unit||'',total_cost:totalCost,unit_cost:outputTotal?totalCost/outputTotal:0,status:'DRAFT',notes:document.getElementById('f_notes').value.trim()}});
+          const productionId=header.data?.id||header.id||code;
+          for(const x of inputs){const lot=selectedLots[x.lotId];await post({action:'create',table:'PRODUCTION_DETAIL',data:{production_id:productionId,product_id:lot.product_id,lot_id:x.lotId,qty_used:x.qty,unit_id:lot.unit_id||'',unit_cost:Number(lot.unit_cost||0),total_cost:x.qty*Number(lot.unit_cost||0)}})}
+          for(const [idx,x] of outputs.entries()){const productId=x.productId||document.getElementById('f_production_name').value;const outLot=`${(productMap[productId]?.code||'LOT').toUpperCase().replace(/[^A-Z0-9]/g,'')}-${document.getElementById('f_production_date').value.replaceAll('-','')}-${String(Date.now()+idx).slice(-4)}`;await post({action:'create',table:'LOT',data:{lot_code:outLot,product_id:productId,source_type:'PRODUCTION',source_ref:productionId,qty_in:x.qty,qty_current:x.qty,unit_id:x.unit||outputs[0]?.unit||'',unit_cost:outputTotal?totalCost/outputTotal:0,total_cost:outputTotal?totalCost/outputTotal*x.qty:0,received_at:document.getElementById('f_production_date').value,status:'ACTIVE',parent_lot_id:''}})}
+          clearCache();closeModal();toast(`Batch ${code} tersimpan`);modulePage(page);return;
         }
-        await post({action:'create',table:c.table,data});
-        closeModal();toast('Data tersimpan');modulePage(page);
+        if(page==='processing'){
+          const code=humanCode('PRC');
+          const sourceId=document.getElementById('f_source_lot').value;const lot=activeLots.find(x=>x.id===sourceId);const qty=Number(document.getElementById('f_qty_used').value||0);
+          const outputs=[...document.querySelectorAll('.proc-output')].map(r=>({productId:r.querySelector('.pr-product')?.value||'',size:r.querySelector('.pr-size')?.value||'',qty:Number(r.querySelector('.pr-qty')?.value||0),unit:r.querySelector('.pr-unit')?.value||''})).filter(x=>x.productId||x.qty);
+          if(!lot||qty<=0){toast('Bahan/lot dan qty diproses wajib diisi');return}
+          if(qty>Number(lot.qty_current||0)){toast(`Qty melebihi sisa lot ${lot.lot_code}`);return}
+          if(!outputs.length||outputs.some(x=>!x.qty||x.qty<=0)){toast('Minimal satu hasil proses dengan qty valid wajib diisi');return}
+          const totalOut=outputs.reduce((a,x)=>a+x.qty,0);const header=await post({action:'create',table:'PROCESSING',data:{processing_code:code,processing_date:document.getElementById('f_processing_date').value,status:'DRAFT',notes:document.getElementById('f_notes').value.trim()}});const processingId=header.data?.id||header.id||code;
+          await post({action:'create',table:'PROCESSING_INPUT',data:{processing_id:processingId,lot_id:sourceId,product_id:lot.product_id,qty_used:qty,unit_id:lot.unit_id||'',unit_cost:Number(lot.unit_cost||0),total_cost:qty*Number(lot.unit_cost||0)}});
+          for(const [idx,x] of outputs.entries()){const outLot=`${(productMap[x.productId]?.code||'LOT').toUpperCase().replace(/[^A-Z0-9]/g,'')}-${document.getElementById('f_processing_date').value.replaceAll('-','')}-${String(Date.now()+idx).slice(-4)}`;const outCost=totalOut?qty*Number(lot.unit_cost||0)/totalOut*x.qty:0;const lotRes=await post({action:'create',table:'LOT',data:{lot_code:outLot,product_id:x.productId,source_type:'PROCESSING',source_ref:processingId,qty_in:x.qty,qty_current:x.qty,unit_id:x.unit||lot.unit_id||'',unit_cost:totalOut?qty*Number(lot.unit_cost||0)/totalOut:0,total_cost:outCost,received_at:document.getElementById('f_processing_date').value,status:'ACTIVE',parent_lot_id:sourceId}});await post({action:'create',table:'PROCESSING_OUTPUT',data:{processing_id:processingId,output_lot_id:lotRes.data?.id||lotRes.id||'',product_id:x.productId,qty_output:x.qty,unit_id:x.unit||lot.unit_id||'',unit_cost:totalOut?qty*Number(lot.unit_cost||0)/totalOut:0,yield_pct:qty?x.qty/qty*100:0,output_type:document.getElementById('f_processing_type').value,notes:x.size||''}})}
+          clearCache();closeModal();toast(`Proses ${code} tersimpan`);modulePage(page);return;
+        }
+        let data={};
+        if(page==='supply'){
+          const code=humanCode('SUPPLY');const qty=Number(document.getElementById('f_qty').value||0),price=Number(document.getElementById('f_unit_price').value||0);data={supply_code:code,supply_date:document.getElementById('f_supply_date').value,customer_id:document.getElementById('f_customer').value,total_amount:qty*price,total_cost:0,gross_profit:qty*price,payment_status:document.getElementById('f_payment_status').value,payment_account_id:'',notes:document.getElementById('f_notes').value.trim()};
+        }else data={transaction_code:humanCode('TRX'),transaction_date:document.getElementById('f_transaction_date').value,transaction_type:document.getElementById('f_transaction_type').value,account_id:document.getElementById('f_account').value,amount:Number(document.getElementById('f_amount').value||0),direction:document.getElementById('f_direction').value,description:document.getElementById('f_description').value.trim()};
+        await post({action:'create',table:c.table,data});clearCache();closeModal();toast('Data tersimpan');modulePage(page);
       }catch(e){toast(e.message)}
     });
     if(document.getElementById('f_production_date'))document.getElementById('f_production_date').value=new Date().toISOString().slice(0,10);
     if(document.getElementById('f_processing_date'))document.getElementById('f_processing_date').value=new Date().toISOString().slice(0,10);
     if(document.getElementById('f_supply_date'))document.getElementById('f_supply_date').value=new Date().toISOString().slice(0,10);
     if(document.getElementById('f_transaction_date'))document.getElementById('f_transaction_date').value=new Date().toISOString().slice(0,10);
-    if(page==='production'){ addProdInput(); addProdOutput(); }
+    if(page==='production'){window.__nuwilLots=activeLots;window.__nuwilProdLotOpts=selectOptions(activeLots,'id',lotLabel,'Pilih bahan / lot...');window.__nuwilProdOutputOpts=selectOptions(products,'id',x=>x.name,'Pilih produk / output...');window.__nuwilUnitOpts=unitOpts;addProdInput();addProdOutput();}
+    if(page==='processing'){window.__nuwilLots=activeLots;window.__nuwilProcProductOpts=selectOptions(products,'id',x=>x.name,'Pilih hasil produk...');window.__nuwilUnitOpts=unitOpts;addProcOutput();document.getElementById('f_source_lot')?.addEventListener('change',updateProcSource);document.getElementById('f_qty_used')?.addEventListener('input',updateProcSource);}
   }catch(e){toast(e.message)}
 }
 function addProdInput(){
-  const wrap=document.getElementById('prodInputs'); if(!wrap)return;
-  wrap.insertAdjacentHTML('beforeend',`<div class="prod-input mini-grid"><input class="pi-name" placeholder="Bahan / Lot"><input class="pi-qty" type="number" step="0.001" placeholder="Qty"><input class="pi-unit" placeholder="kg"><input class="pi-hpp" type="number" step="1" placeholder="HPP/unit"><button class="btn danger mini" type="button" onclick="this.parentElement.remove();calcProd()">×</button></div>`);
-  wrap.lastElementChild.querySelectorAll('input').forEach(x=>x.oninput=calcProd); calcProd();
+  const wrap=document.getElementById('prodInputs');if(!wrap)return;
+  const opts=window.__nuwilProdLotOpts||'';
+  wrap.insertAdjacentHTML('beforeend',`<div class="prod-input mini-grid"><select class="pi-lot">${opts}</select><input class="pi-qty" type="number" min="0" step="0.001" placeholder="Qty dipakai"><input class="pi-hpp" type="text" readonly placeholder="HPP/unit"><button class="btn danger mini" type="button" onclick="this.parentElement.remove();calcProd()">×</button></div>`);
+  const row=wrap.lastElementChild;row.querySelector('.pi-lot').addEventListener('change',()=>{updateProdRow(row);calcProd()});row.querySelector('.pi-qty').addEventListener('input',calcProd);calcProd();
 }
 function addProdOutput(){
-  const wrap=document.getElementById('prodOutputs'); if(!wrap)return;
-  wrap.insertAdjacentHTML('beforeend',`<div class="prod-output mini-grid"><input class="po-name" placeholder="Produk / output"><input class="po-size" placeholder="Size / grade (opsional)"><input class="po-qty" type="number" step="0.001" placeholder="Qty"><input class="po-unit" placeholder="pcs / kg / box"><button class="btn danger mini" type="button" onclick="this.parentElement.remove();calcProd()">×</button></div>`);
-  wrap.lastElementChild.querySelectorAll('input').forEach(x=>x.oninput=calcProd); calcProd();
+  const wrap=document.getElementById('prodOutputs');if(!wrap)return;
+  const opts=window.__nuwilProdOutputOpts||'';
+  wrap.insertAdjacentHTML('beforeend',`<div class="prod-output mini-grid"><select class="po-product">${opts}</select><input class="po-size" placeholder="Size / grade (opsional)"><input class="po-qty" type="number" min="0" step="0.001" placeholder="Qty"><select class="po-unit">${window.__nuwilUnitOpts||''}</select><button class="btn danger mini" type="button" onclick="this.parentElement.remove();calcProd()">×</button></div>`);
+  wrap.lastElementChild.querySelectorAll('input,select').forEach(x=>x.addEventListener('input',calcProd));calcProd();
 }
-function calcProd(){
-  const inputs=[...document.querySelectorAll('.prod-input')]; const outputs=[...document.querySelectorAll('.prod-output')];
-  const cost=inputs.reduce((a,r)=>a+(Number(r.querySelector('.pi-qty')?.value||0)*Number(r.querySelector('.pi-hpp')?.value||0)),0);
-  const qty=outputs.reduce((a,r)=>a+Number(r.querySelector('.po-qty')?.value||0),0);
-  if(document.getElementById('prodTotal'))document.getElementById('prodTotal').textContent=money(cost);
-  if(document.getElementById('prodOutputTotal'))document.getElementById('prodOutputTotal').textContent=num(qty);
+function updateProdRow(row){const lotId=row.querySelector('.pi-lot')?.value;const lot=(window.__nuwilLots||[]).find(x=>x.id===lotId);row.querySelector('.pi-hpp').value=lot?money(Number(lot.unit_cost||0)):' ';row.querySelector('.pi-qty').max=lot?Number(lot.qty_current||0):'';}
+function addProcOutput(){
+  const wrap=document.getElementById('procOutputs');if(!wrap)return;
+  wrap.insertAdjacentHTML('beforeend',`<div class="proc-output mini-grid"><select class="pr-product">${window.__nuwilProcProductOpts||''}</select><input class="pr-size" placeholder="Size / grade (opsional)"><input class="pr-qty" type="number" min="0" step="0.001" placeholder="Qty hasil"><select class="pr-unit">${window.__nuwilUnitOpts||''}</select><button class="btn danger mini" type="button" onclick="this.parentElement.remove();calcProc()">×</button></div>`);
+  wrap.lastElementChild.querySelectorAll('input,select').forEach(x=>x.addEventListener('input',calcProc));calcProc();
 }
+function updateProcSource(){const lotId=document.getElementById('f_source_lot')?.value;const lot=(window.__nuwilLots||[]).find(x=>x.id===lotId);const qty=document.getElementById('f_qty_used');if(qty)qty.max=lot?Number(lot.qty_current||0):'';calcProc()}
+function calcProc(){const input=Number(document.getElementById('f_qty_used')?.value||0);const out=[...document.querySelectorAll('.proc-output')].reduce((a,r)=>a+Number(r.querySelector('.pr-qty')?.value||0),0);if(document.getElementById('procInputTotal'))document.getElementById('procInputTotal').textContent=num(input);if(document.getElementById('procOutputTotal'))document.getElementById('procOutputTotal').textContent=num(out);if(document.getElementById('procLossTotal'))document.getElementById('procLossTotal').textContent=num(input-out)}
+function calcProd(){const inputs=[...document.querySelectorAll('.prod-input')],outputs=[...document.querySelectorAll('.prod-output')];const cost=inputs.reduce((a,r)=>{const lot=(window.__nuwilLots||[]).find(x=>x.id===r.querySelector('.pi-lot')?.value);return a+Number(r.querySelector('.pi-qty')?.value||0)*Number(lot?.unit_cost||0)},0);const qty=outputs.reduce((a,r)=>a+Number(r.querySelector('.po-qty')?.value||0),0);if(document.getElementById('prodTotal'))document.getElementById('prodTotal').textContent=money(cost);if(document.getElementById('prodOutputTotal'))document.getElementById('prodOutputTotal').textContent=num(qty)}
 
 
 async function modulePage(page){
