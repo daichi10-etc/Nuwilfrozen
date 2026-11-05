@@ -17,7 +17,7 @@
 .quick{display:grid;grid-template-columns:1fr 1fr;gap:9px}.quick button{border:1px solid var(--line);background:#fff;text-align:left;border-radius:11px;padding:13px}.quick button:hover{border-color:#efc77c;background:#fffaf2}.quick b{display:block;color:var(--charcoal);font-size:11px}.quick span{display:block;color:var(--muted);font-size:9px;line-height:1.5;margin-top:4px}
 .toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}.search{width:320px;max-width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;outline:none;font-size:11px}.search:focus{border-color:#efc77c;box-shadow:0 0 0 3px rgba(233,154,24,.08)}.btn{border:0;border-radius:9px;padding:10px 14px;font-size:10px;font-weight:800}.primary{background:var(--mint);color:#fff}.primary:hover{background:#d98c10}.soft{background:#e9f7f0;color:var(--charcoal)}
 .tablebox{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:auto;box-shadow:var(--shadow)}table{width:100%;border-collapse:collapse;font-size:10px}th{background:#fbfcfb;color:#8a7d6e;text-align:left;padding:12px;font-size:9px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--line)}td{padding:12px;border-bottom:1px solid #f0eae2;white-space:nowrap}tr:last-child td{border-bottom:0}.badge{display:inline-block;padding:4px 7px;border-radius:999px;font-size:8px;font-weight:800;background:#e9f7f0;color:#12845d}.empty{background:#fbfcfb;border:1px dashed #dce6e1;border-radius:11px;padding:30px;text-align:center;color:#a29586;font-size:11px;line-height:1.7}.error{background:#fff0ed;color:#b42318;border-radius:11px;padding:15px;font-size:11px}
-.modal-bg{position:fixed;inset:0;background:rgba(23,33,29,.48);display:grid;place-items:center;padding:18px;z-index:99}.modal{background:#fff;width:min(560px,100%);border-radius:16px;padding:20px;box-shadow:0 25px 80px rgba(0,0,0,.22)}.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.modal-head b{font-size:16px;color:var(--charcoal)}.close{border:0;background:#edf2ef;border-radius:50%;width:30px;height:30px}.form{display:grid;grid-template-columns:1fr 1fr;gap:11px}.field{display:flex;flex-direction:column;gap:5px}.field.full{grid-column:1/-1}.field label{font-size:9px;font-weight:700;color:#64736c}.field input{border:1px solid var(--line);border-radius:9px;padding:10px;font-size:11px;outline:0}.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:17px}.toast{position:fixed;right:20px;bottom:20px;background:var(--charcoal);color:#fff;border-radius:10px;padding:11px 14px;font-size:10px;opacity:0;transform:translateY(8px);transition:.2s;z-index:120}.toast.show{opacity:1;transform:none}
+.modal-bg{position:fixed;inset:0;background:rgba(23,33,29,.48);display:grid;place-items:center;padding:18px;z-index:99}.modal{background:#fff;width:min(560px,100%);max-height:calc(100vh - 36px);overflow-y:auto;box-sizing:border-box;border-radius:16px;padding:20px;box-shadow:0 25px 80px rgba(0,0,0,.22)}.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.modal-head b{font-size:16px;color:var(--charcoal)}.close{border:0;background:#edf2ef;border-radius:50%;width:30px;height:30px}.form{display:grid;grid-template-columns:1fr 1fr;gap:11px}.field{display:flex;flex-direction:column;gap:5px}.field.full{grid-column:1/-1}.field label{font-size:9px;font-weight:700;color:#64736c}.field input{border:1px solid var(--line);border-radius:9px;padding:10px;font-size:11px;outline:0}.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:17px}.toast{position:fixed;right:20px;bottom:20px;background:var(--charcoal);color:#fff;border-radius:10px;padding:11px 14px;font-size:10px;opacity:0;transform:translateY(8px);transition:.2s;z-index:120}.toast.show{opacity:1;transform:none}
 @media(max-width:1050px){.sidebar{width:210px}.content{margin-left:210px;width:calc(100% - 210px)}.cards{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.top-right .user{display:none}}@media(max-width:700px){.sidebar{position:fixed;transform:translateX(-100%);transition:.2s;width:245px}.sidebar.open{transform:none}.content{margin-left:0;width:100%}.topbar{padding:0 16px}.mobile{display:block!important}.main{padding:20px 14px 40px}.heading{align-items:flex-start}.date{display:none}.cards{grid-template-columns:1fr}.hero-logo{display:none}.quick{grid-template-columns:1fr}.toolbar{flex-direction:column;align-items:stretch}.search{width:100%}.form{grid-template-columns:1fr}.field.full{grid-column:auto}}.mobile{display:none;border:0;background:#e9f7f0;color:var(--charcoal);border-radius:9px;padding:8px 10px;font-size:16px}
 </style>
 <style>
@@ -148,7 +148,8 @@ async function purchaseForm(){
     ]);
     const unitOpts=selectOptions(units,'id',x=>x.name||x.code,'Pilih satuan...');
     openEmployeeModal('Pembelian Bahan Baku',
-      `<div class="form">
+      `<div class="quick-note"><b>No. Pembelian dibuat otomatis.</b><br>Karyawan cukup pilih supplier, barang, jumlah, dan harga. Tidak perlu mengisi ID supplier atau ID produk.</div>
+       <div class="form">
         ${fieldHTML('supplier','Supplier','select',selectOptions(suppliers,'id',x=>x.name,'Pilih supplier...'))}
         <div class="field"><label></label><button class="btn soft mini" type="button" onclick="supplierForm()">+ Supplier Baru</button></div>
         ${fieldHTML('purchase_date','Tanggal','date')}
@@ -157,8 +158,6 @@ async function purchaseForm(){
         ${fieldHTML('qty_actual','Qty Aktual','number')}
         ${fieldHTML('unit','Satuan','select',unitOpts)}
         ${fieldHTML('unit_price','Harga per Satuan','number')}
-        ${fieldHTML('freight_cost','Ongkir / Biaya Angkut','number')}
-        <div class="field full"><div class="quick-note" id="purchaseCostSummary">Nilai barang: Rp0<br>Ongkir: Rp0<br><b>Total modal lot: Rp0</b><br>HPP lot: Rp0 / satuan</div></div>
         ${fieldHTML('payment_status','Pembayaran','select','<option value="PAID">Lunas</option><option value="UNPAID">Belum Lunas</option><option value="PARTIAL">Sebagian</option>')}
         ${fieldHTML('notes','Catatan','textarea')}
        </div>`,
@@ -169,60 +168,24 @@ async function purchaseForm(){
         const qtyInvoice=Number(document.getElementById('f_qty_invoice').value||0);
         const unit=document.getElementById('f_unit').value;
         const price=Number(document.getElementById('f_unit_price').value||0);
-        const freight=Number(document.getElementById('f_freight_cost').value||0);
         if(!supplier||!product||!qtyActual||!unit||!price){toast('Supplier, barang, qty aktual, satuan, dan harga wajib diisi');return}
-        if(freight<0){toast('Ongkir tidak boleh negatif');return}
-
-        const productRow=products.find(x=>x.id===product);
         const code=humanCode('PO');
-        const goodsCost=qtyActual*price;
-        const landedCost=goodsCost+freight;
-        const landedUnitCost=qtyActual?landedCost/qtyActual:0;
-        const d=new Date(document.getElementById('f_purchase_date').value||new Date());
-        const p=n=>String(n).padStart(2,'0');
-        const lotPrefix=(productRow?.code||'LOT').toUpperCase().replace(/[^A-Z0-9]/g,'');
-        const lotCode=`${lotPrefix}-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${String(Date.now()).slice(-3)}`;
-
         try{
           const h=await post({action:'create',table:'PURCHASE',data:{
             purchase_code:code,supplier_id:supplier,purchase_date:document.getElementById('f_purchase_date').value,
-            invoice_qty:qtyInvoice,actual_qty:qtyActual,unit_id:unit,total_amount:landedCost,
+            invoice_qty:qtyInvoice,actual_qty:qtyActual,unit_id:unit,total_amount:qtyActual*price,
             payment_status:document.getElementById('f_payment_status').value,notes:document.getElementById('f_notes').value.trim()
           }});
-
-          const lot=await post({action:'create',table:'LOT',data:{
-            lot_code:lotCode,product_id:product,source_type:'PURCHASE',source_ref:h.data?.id||h.id||code,
-            qty_in:qtyActual,qty_current:qtyActual,unit_id:unit,unit_cost:landedUnitCost,
-            total_cost:landedCost,received_at:document.getElementById('f_purchase_date').value,status:'ACTIVE',parent_lot_id:''
-          }});
-
           await post({action:'create',table:'PURCHASE_DETAIL',data:{
             purchase_id:h.data?.id||h.id||code,product_id:product,qty_invoice:qtyInvoice,qty_actual:qtyActual,
-            unit_id:unit,unit_price:price,total_cost:landedCost,lot_id:lot.data?.id||lot.id||''
+            unit_id:unit,unit_price:price,total_cost:qtyActual*price,lot_id:''
           }});
-
-          closeModal();toast(`Pembelian ${code} tersimpan • Lot ${lotCode}`);modulePage('purchases');
+          closeModal();toast(`Pembelian ${code} tersimpan`);modulePage('purchases');
         }catch(e){toast(e.message)}
       });
     document.getElementById('f_purchase_date').value=new Date().toISOString().slice(0,10);
-
-    const updatePurchaseCost=()=>{
-      const qty=Number(document.getElementById('f_qty_actual')?.value||0);
-      const price=Number(document.getElementById('f_unit_price')?.value||0);
-      const freight=Number(document.getElementById('f_freight_cost')?.value||0);
-      const goods=qty*price,total=goods+freight,hpp=qty?total/qty:0;
-      const el=document.getElementById('purchaseCostSummary');
-      if(el)el.innerHTML=`Nilai barang: ${money(goods)}<br>Ongkir: ${money(freight)}<br><b>Total modal lot: ${money(total)}</b><br>HPP lot: ${money(hpp)} / satuan`;
-    };
-    ['f_qty_invoice','f_qty_actual','f_unit_price','f_freight_cost'].forEach(id=>{
-      document.getElementById(id).addEventListener('input',updatePurchaseCost);
-    });
     // Prefer actual qty = invoice qty for fast entry.
-    document.getElementById('f_qty_invoice').oninput=e=>{
-      if(!document.getElementById('f_qty_actual').value)document.getElementById('f_qty_actual').value=e.target.value;
-      updatePurchaseCost();
-    };
-    updatePurchaseCost();
+    document.getElementById('f_qty_invoice').oninput=e=>{if(!document.getElementById('f_qty_actual').value)document.getElementById('f_qty_actual').value=e.target.value}
   }catch(e){toast(e.message)}
 }
 
