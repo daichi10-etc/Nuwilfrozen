@@ -89,28 +89,10 @@ function openForm(page){
   if(page==='suppliers'){
     return supplierForm();
   }
-  const c=masters[page],fields=page==='products'?[['name','Nama Produk'],['product_type','Tipe Produk'],['min_stock','Minimum Stok']]:page==='categories'?[['code','Kode'],['name','Nama Kategori'],['type','Tipe']]:[['code','Kode'],['name','Nama Customer'],['customer_type','Tipe Customer']];
+  const c=masters[page],fields=page==='products'?[['name','Nama Produk'],['min_stock','Minimum Stok']]:page==='categories'?[['code','Kode'],['name','Nama Kategori'],['type','Tipe']]:[['code','Kode'],['name','Nama Customer'],['customer_type','Tipe Customer']];
   document.body.insertAdjacentHTML('beforeend',`<div class="modal-bg" id="modal"><div class="modal"><div class="modal-head"><b>Tambah ${c.label}</b><button class="close" onclick="closeModal()">×</button></div><div class="form">${fields.map(f=>`<div class="field ${f[0]==='address'?'full':''}"><label>${f[1]}</label><input id="f_${f[0]}"></div>`).join('')}</div><div class="modal-actions"><button class="btn soft" onclick="closeModal()">Batal</button><button class="btn primary" onclick="saveMaster('${page}')">Simpan</button></div></div></div>`)
 }
-async function saveMaster(page){
-  const c=masters[page],data={};
-  document.querySelectorAll('#modal input').forEach(x=>data[x.id.slice(2)]=x.value.trim());
-  if(!data.name){toast('Nama wajib diisi');return}
-  data.status='ACTIVE';
-  if(page==='products'){
-    data.code = 'PRD-' + String(Date.now()).slice(-6);
-    data.category_id='';
-    data.unit_id='';
-    data.product_type=data.product_type||'RAW';
-    data.track_lot=true;
-    data.track_batch=false;
-    data.min_stock=Number(data.min_stock||0)
-  }
-  try{
-    await post({action:'create',table:c.table,data});
-    closeModal();toast('Data tersimpan');master(page)
-  }catch(e){toast(e.message)}
-}function closeModal(){document.getElementById('modal')?.remove()}
+async function saveMaster(page){const c=masters[page],data={};document.querySelectorAll('#modal input').forEach(x=>data[x.id.slice(2)]=x.value.trim());if(!data.name){toast('Nama wajib diisi');return}data.status='ACTIVE';if(page==='products'){data.category_id='';data.unit_id='';data.product_type='RAW';data.track_lot=true;data.track_batch=false;data.min_stock=Number(data.min_stock||0)}try{await post({action:'create',table:c.table,data});closeModal();toast('Data tersimpan');master(page)}catch(e){toast(e.message)}}function closeModal(){document.getElementById('modal')?.remove()}
 function modulePage(page){conn('on');app.innerHTML=`<div class="grid"><div class="panel"><div class="panel-head"><div><div class="panel-title">${pages[page][0]}</div><div class="panel-sub">${pages[page][1]}</div></div></div><div class="empty">Modul ini kita bangun bertahap dengan tampilan yang sama. Backend NUWIL sudah terhubung.</div></div><div class="panel"><div class="panel-title">Koneksi Sistem</div><div class="rows"><div class="row"><span>Backend</span><b>Online</b></div><div class="row"><span>Database</span><b>Google Sheets</b></div></div></div></div>`}
 
 /* ===== EMPLOYEE-FRIENDLY MODULES ===== */
