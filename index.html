@@ -57,6 +57,7 @@
 .detail-card{border:1px solid var(--line);border-radius:11px;padding:12px;background:#fff}
 .detail-card .muted{color:var(--muted);font-size:9px}
 .detail-card b{font-size:12px}
+.prod-input .field input[readonly]{background:#f7faf8;color:#42534b;font-weight:700}.prod-input .pi-lot{width:100%}.prod-input .quick-note{margin-bottom:0}
 </style>
 
 </head>
@@ -109,6 +110,18 @@ function humanCode(prefix){
 }
 function selectOptions(rows,valueField,labelFn,empty='Pilih...'){
   return `<option value="">${empty}</option>`+rows.map(r=>`<option value="${esc(r[valueField]??'')}">${esc(labelFn(r))}</option>`).join('');
+}
+async function loadAvailableLots(products=[]){
+  const j=await get({action:'list',table:'LOT',limit:1000});
+  const rows=(j.data||[]).filter(x=>Number(x.qty_current||0)>0);
+  const pm=Object.fromEntries(products.map(x=>[x.id,x]));
+  return rows.map(x=>({...x,product_name:pm[x.product_id]?.name||x.product_id||'Produk'}));
+}
+function lotOptions(rows,empty='Pilih lot yang masih tersedia...'){
+  return `<option value="">${empty}</option>`+rows.map(r=>{
+    const qty=num(r.qty_current),unit=r.unit_id||'',hpp=money(r.unit_cost);
+    return `<option value="${esc(r.id||'')}" data-qty="${Number(r.qty_current)||0}" data-unit="${esc(unit)}" data-hpp="${Number(r.unit_cost)||0}" data-product="${esc(r.product_id||'')}">${esc(`${r.lot_code||'-'} • ${r.product_name||'Produk'} • ${qty} ${unit} • HPP ${hpp}`)}</option>`;
+  }).join('');
 }
 function fieldHTML(id,labelText,type='text',opts=''){
   if(type==='select') return `<div class="field"><label>${labelText}</label><select id="f_${id}">${opts}</select></div>`;
@@ -322,17 +335,23 @@ async function genericOperationForm(page){
       try{
         let data={};
         if(page==='production'){
-          const code=humanCode('BAT');
-          const outputs=[...document.querySelectorAll('.prod-output')].map(r=>({name:r.querySelector('.po-name')?.value||'',size:r.querySelector('.po-size')?.value||'',qty:Number(r.querySelector('.po-qty')?.value||0),unit:r.querySelector('.po-unit')?.value||''})).filter(x=>x.name||x.qty);
-          const inputs=[...document.querySelectorAll('.prod-input')].map(r=>({name:r.querySelector('.pi-name')?.value||'',qty:Number(r.querySelector('.pi-qty')?.value||0),hpp:Number(r.querySelector('.pi-hpp')?.value||0),unit:r.querySelector('.pi-unit')?.value||''})).filter(x=>x.name||x.qty);
-          const totalCost=inputs.reduce((a,x)=>a+(x.qty*x.hpp),0);
-          const outputTotal=outputs.reduce((a,x)=>a+(x.qty||0),0);
-          if(!document.getElementById('f_production_name').value||!outputTotal){toast('Nama produksi dan minimal satu output wajib diisi');return}
-          data={batch_code:code,production_date:document.getElementById('f_production_date').value,product_id:document.getElementById('f_production_name').value,output_qty:outputTotal,output_unit_id:outputs[0]?.unit||'',total_cost:totalCost,unit_cost:outputTotal?totalCost/outputTotal:0,status:'DRAFT',notes:document.getElementById('f_notes').value.trim()};
-        }else if(page==='processing'){
-          const code=humanCode('PRC');
-          data={processing_code:code,processing_date:document.getElementById('f_processing_date').value,status:'DRAFT',notes:document.getElementById('f_notes').value.trim()};
-        }else if(page==='supply'){
+      const availableLots=await loadAvailableLots(products);
+      window.currentProductionLots=availableLots;
+      body=`<div class="quick-note"><b>Produksi dicatat sebagai batch.</b><br>Untuk bahan, pilih hanya lot yang masih punya stok. Lot dengan stok 0 otomatis tidak muncul. Setelah lot dipilih, stok tersedia dan HPP/unit ditampilkan otomatis.</div>
+        <div class="section-label">Info Produksi</div><div class="form">
+          ${fieldHTML('production_date','Tanggal','date')}
+          ${fieldHTML('production_type','Jenis Produksi','select','<option value="">Pilih jenis...</option><option value="ADONAN">Adonan Dasar</option><option value="PRODUK_JADI">Produk Jadi</option>')}
+          ${fieldHTML('production_name','Nama Produksi','select',selectOptions(products,'id',x=>x.name,'Pilih produk...'))}
+        </div>
+        <div class="section-label">Bahan yang Dipakai</div>
+        <div id="prodInputs" class="stack"></div>
+        <button class="btn soft" type="button" onclick="addProdInput()">+ Tambah Lot Bahan</button>
+        <div class="section-label">Hasil Aktual</div>
+        <div id="prodOutputs" class="stack"></div>
+        <button class="btn soft" type="button" onclick="addProdOutput()">+ Tambah Output / Size</button>
+        <div class="prod-total panel"><div class="row"><span>Total HPP Batch</span><b id="prodTotal">Rp0</b></div><div class="row"><span>Total Output</span><b id="prodOutputTotal">0</b></div></div>
+        ${fieldHTML('notes','Catatan','textarea')}`;
+    }else if(page==='supply'){
           const code=humanCode('SUPPLY');
           const qty=Number(document.getElementById('f_qty').value||0),price=Number(document.getElementById('f_unit_price').value||0);
           data={supply_code:code,supply_date:document.getElementById('f_supply_date').value,customer_id:document.getElementById('f_customer').value,total_amount:qty*price,total_cost:0,gross_profit:qty*price,payment_status:document.getElementById('f_payment_status').value,payment_account_id:'',notes:document.getElementById('f_notes').value.trim()};
@@ -352,8 +371,33 @@ async function genericOperationForm(page){
 }
 function addProdInput(){
   const wrap=document.getElementById('prodInputs'); if(!wrap)return;
-  wrap.insertAdjacentHTML('beforeend',`<div class="prod-input mini-grid"><input class="pi-name" placeholder="Bahan / Lot"><input class="pi-qty" type="number" step="0.001" placeholder="Qty"><input class="pi-unit" placeholder="kg"><input class="pi-hpp" type="number" step="1" placeholder="HPP/unit"><button class="btn danger mini" type="button" onclick="this.parentElement.remove();calcProd()">×</button></div>`);
-  wrap.lastElementChild.querySelectorAll('input').forEach(x=>x.oninput=calcProd); calcProd();
+  const lots=window.currentProductionLots||[];
+  if(!lots.length){
+    wrap.insertAdjacentHTML('beforeend',`<div class="detail-card prod-input"><b>Tidak ada lot tersedia</b><div class="muted" style="margin-top:5px">Semua lot stoknya 0 atau belum ada lot masuk.</div></div>`);
+    calcProd(); return;
+  }
+  const row=document.createElement('div'); row.className='detail-card prod-input';
+  row.innerHTML=`<div class="form">
+    <div class="field full"><label>Lot Bahan</label><select class="pi-lot">${lotOptions(lots)}</select></div>
+    <div class="field"><label>Stok Tersedia</label><input class="pi-stock" readonly placeholder="-"></div>
+    <div class="field"><label>Qty Dipakai</label><input class="pi-qty" type="number" step="0.001" min="0" placeholder="0"></div>
+    <div class="field"><label>Satuan</label><input class="pi-unit" readonly placeholder="-"></div>
+    <div class="field"><label>HPP / Satuan</label><input class="pi-hpp" readonly placeholder="Rp0"></div>
+    <div class="field full"><div class="quick-note pi-summary">Pilih lot terlebih dahulu.</div></div>
+  </div><div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn danger mini" type="button">Hapus Lot</button></div>`;
+  wrap.appendChild(row);
+  const sel=row.querySelector('.pi-lot'),qty=row.querySelector('.pi-qty'),stock=row.querySelector('.pi-stock'),unit=row.querySelector('.pi-unit'),hpp=row.querySelector('.pi-hpp'),summary=row.querySelector('.pi-summary');
+  const syncLot=()=>{
+    const opt=sel.options[sel.selectedIndex],available=Number(opt?.dataset.qty||0),unitVal=opt?.dataset.unit||'',hppVal=Number(opt?.dataset.hpp||0),used=Number(qty.value||0);
+    stock.value=available?num(available):'-'; unit.value=unitVal||'-'; hpp.value=hppVal?money(hppVal):'Rp0'; qty.max=available||'';
+    if(used>available)qty.value=available||0;
+    const actualUsed=Number(qty.value||0);
+    summary.innerHTML=opt?.value?`<b>${esc(opt.textContent||'')}</b><br>Stok tersisa setelah dipakai: <b>${num(Math.max(available-actualUsed,0))} ${esc(unitVal)}</b>`:'Pilih lot terlebih dahulu.';
+    calcProd();
+  };
+  sel.addEventListener('change',syncLot);
+  qty.addEventListener('input',()=>{const available=Number(sel.options[sel.selectedIndex]?.dataset.qty||0);if(Number(qty.value||0)>available){qty.value=available;toast(`Qty tidak boleh melebihi stok lot (${num(available)})`)}syncLot()});
+  row.querySelector('.btn.danger').onclick=()=>{row.remove();calcProd()}; syncLot();
 }
 function addProdOutput(){
   const wrap=document.getElementById('prodOutputs'); if(!wrap)return;
@@ -362,11 +406,12 @@ function addProdOutput(){
 }
 function calcProd(){
   const inputs=[...document.querySelectorAll('.prod-input')]; const outputs=[...document.querySelectorAll('.prod-output')];
-  const cost=inputs.reduce((a,r)=>a+(Number(r.querySelector('.pi-qty')?.value||0)*Number(r.querySelector('.pi-hpp')?.value||0)),0);
+  const cost=inputs.reduce((a,r)=>{const qty=Number(r.querySelector('.pi-qty')?.value||0),sel=r.querySelector('.pi-lot'),hpp=Number(sel?.options[sel.selectedIndex]?.dataset.hpp||0);return a+(qty*hpp)},0);
   const qty=outputs.reduce((a,r)=>a+Number(r.querySelector('.po-qty')?.value||0),0);
   if(document.getElementById('prodTotal'))document.getElementById('prodTotal').textContent=money(cost);
   if(document.getElementById('prodOutputTotal'))document.getElementById('prodOutputTotal').textContent=num(qty);
 }
+
 
 
 async function modulePage(page){
