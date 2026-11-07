@@ -88,14 +88,55 @@ const pages={dashboard:['Dashboard','Ringkasan kondisi usaha dan persediaan.'],i
 const masters={products:{table:'MST_PRODUCT',label:'Produk',cols:['code','name','product_type','min_stock','status']},categories:{table:'MST_CATEGORY',label:'Kategori',cols:['code','name','type','status']},suppliers:{table:'MST_SUPPLIER',label:'Supplier',cols:['code','name','phone','status']},customers:{table:'MST_CUSTOMER',label:'Customer',cols:['code','name','customer_type','status']}};
 document.getElementById('today').textContent=new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'long',year:'numeric'}).format(new Date());
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.page));document.getElementById('mobileBtn').onclick=()=>document.getElementById('sidebar').classList.toggle('open');
-async function get(p){const r=await fetch(API+'?'+new URLSearchParams(p),{cache:'no-store'});const j=await r.json();if(!j.ok)throw Error(j.error||'Backend error');return j}async function post(p){const r=await fetch(API,{method:'POST',body:JSON.stringify(p)});const j=await r.json();if(!j.ok)throw Error(j.error||'Backend error');return j}
+const TABLE_MAP={
+  MST_SUPPLIER:'SUPPLIER',MST_PRODUCT:'PRODUK',MST_CUSTOMER:'PELANGGAN',MST_UNIT:'SATUAN',
+  PURCHASE:'PEMBELIAN',PURCHASE_DETAIL:'DETAIL_PEMBELIAN',LOT:'STOK',STOCK_MOVEMENT:'MUTASI_STOK',
+  SUPPLY:'SUPPLY_TOKA',SUPPLY_DETAIL:'DETAIL_SUPPLY_TOKA',FINANCE_TRANSACTION:'TRANSAKSI_KEUANGAN',
+  FINANCE_LEDGER:'JURNAL_KEUANGAN',MST_ACCOUNT:'AKUN_KEUANGAN'
+};
+function normalizeRow(table,r){
+  if(!r)return r;
+  if(table==='SUPPLIER')return {...r,code:r.kode,name:r.nama_supplier,phone:r.telepon,address:r.alamat};
+  if(table==='PRODUK')return {...r,code:r.kode,name:r.nama_produk,product_type:r.jenis,min_stock:r.stok_minimum,status:r.status};
+  if(table==='PELANGGAN')return {...r,code:r.kode,name:r.nama_pelanggan,customer_type:r.jenis,status:r.status};
+  if(table==='SATUAN')return {...r,code:r.kode,name:r.nama_satuan,decimals:r.desimal,status:r.status};
+  if(table==='PEMBELIAN')return {...r,purchase_code:r.no_pembelian,purchase_date:r.tanggal,total_amount:r.total,payment_status:r.status_pembayaran,notes:r.catatan};
+  if(table==='STOK')return {...r,lot_code:r.no_lot,product_id:r.produk_id,qty_in:r.qty_awal,qty_current:r.qty_saat_ini,unit_id:r.satuan_id,unit_cost:r.hpp,total_cost:r.total_nilai};
+  if(table==='MUTASI_STOK')return {...r,movement_code:r.no_mutasi,movement_date:r.tanggal,product_id:r.produk_id,lot_id:r.no_lot,movement_type:r.jenis_mutasi,qty_in:r.masuk,qty_out:r.keluar,reference:r.referensi};
+  if(table==='SUPPLY_TOKA')return {...r,supply_code:r.no_supply,supply_date:r.tanggal,total_amount:r.total_penjualan,total_cost:r.total_hpp,gross_profit:r.laba_kotor,payment_status:r.status_pembayaran,notes:r.catatan};
+  if(table==='DETAIL_SUPPLY_TOKA')return {...r,supply_id:r.supply_id,product_id:r.produk_id,lot_batch:r.lot_batch,unit_id:r.satuan_id,unit_price:r.harga_jual,total_price:r.total_jual,total_cost:r.total_hpp};
+  if(table==='TRANSAKSI_KEUANGAN')return {...r,transaction_code:r.no_transaksi,transaction_date:r.tanggal,transaction_type:r.jenis,account_id:r.akun,amount:(Number(r.masuk)||0)+(Number(r.keluar)||0),direction:(Number(r.masuk)||0)>0?'IN':'OUT',description:r.keterangan};
+  if(table==='JURNAL_KEUANGAN')return {...r,ledger_date:r.tanggal,journal_code:r.no_jurnal,account_id:r.akun};
+  if(table==='AKUN_KEUANGAN')return {...r,code:r.kode_akun,name:r.nama_akun,account_type:r.jenis_akun};
+  return r;
+}
+function legacyTable(t){return TABLE_MAP[t]||t}
+async function get(p){const q={...p};if(q.table)q.table=legacyTable(q.table);const r=await fetch(API+'?'+new URLSearchParams(q),{cache:'no-store'});const j=await r.json();if(!j.ok)throw Error(j.error||'Backend error');if(q.action==='list'&&Array.isArray(j.data?.rows))j.data.rows=j.data.rows.map(x=>normalizeRow(q.table,x));if(q.action==='dashboard'&&j.data){j.data.inventoryValue=j.data.inventory;j.data.supplyThisMonth=j.data.salesMonth;j.data.activeLots=j.data.purchaseCount+j.data.productionCount;j.data.productionBatches=j.data.productionCount}return j}
+async function post(p){
+  const x={...p,data:{...(p.data||{})}};
+  if(p.action==='create'&&p.table){
+    const t=legacyTable(p.table),d=x.data;
+    if(t==='SUPPLIER'){x.action='create_supplier';x.nama_supplier=d.name;x.telepon=d.phone;x.alamat=d.address;delete x.data}
+    else if(t==='PRODUK'){x.action='create_product';x.nama_produk=d.name;x.kategori=d.category_id||d.category||'';x.satuan=d.unit_id||d.unit||'';x.jenis=d.product_type||'Bahan Baku';x.stok_minimum=d.min_stock||0;delete x.data}
+    else if(t==='PELANGGAN'){x.action='create_customer';x.nama_pelanggan=d.name;x.jenis=d.customer_type||'Eksternal';delete x.data}
+    else if(t==='SATUAN'){x.action='create_unit';x.nama_satuan=d.name;x.desimal=d.decimals||0;delete x.data}
+    else if(t==='PEMBELIAN'){
+      x.action='create_purchase';x.supplier_id=d.supplier_id;x.produk_id=d.product_id;x.satuan_id=d.unit_id;x.qty=d.actual_qty;x.harga=Number(d.total_amount||0)/(Number(d.actual_qty)||1);x.status_pembayaran=d.payment_status==='PAID'?'Lunas':d.payment_status==='PARTIAL'?'Sebagian':'Belum Lunas';x.jumlah_dibayar=d.payment_status==='PAID'?Number(d.total_amount||0):0;x.catatan=d.notes||'';delete x.data
+    } else if(t==='SUPPLY_TOKA'){
+      x.action='create_supply';x.lot_batch=d.lot_batch;x.qty=d.qty;x.harga_jual=d.unit_price||d.harga_jual;x.status_pembayaran=d.payment_status||'Belum Lunas';x.jumlah_dibayar=d.payment_status==='PAID'?Number(d.total_amount||0):0;x.catatan=d.notes||'';delete x.data
+    } else if(t==='TRANSAKSI_KEUANGAN'){
+      x.action='create_finance';x.amount=d.amount;x.direction=d.direction;x.akun=d.account_id||'CASH';x.jenis=d.transaction_type||'Manual';x.tanggal=d.transaction_date;x.keterangan=d.description||'';delete x.data
+    }
+  }
+  const r=await fetch(API,{method:'POST',body:JSON.stringify(x)});const j=await r.json();if(!j.ok)throw Error(j.error||'Backend error');return j
+}
 function conn(s){dot.className='dot '+(s==='on'?'on':s==='off'?'off':'');statusEl.textContent=s==='on'?'Online':s==='off'?'Offline':'Connecting...'}
 function go(page){document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));document.getElementById('sidebar').classList.remove('open');title.textContent=pages[page][0];subtitle.textContent=pages[page][1];if(page==='dashboard')return dashboard();if(page==='inventory')return inventory();if(masters[page])return master(page);return modulePage(page)}
 function money(v){return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(v)||0)}function num(v){return new Intl.NumberFormat('id-ID',{maximumFractionDigits:3}).format(Number(v)||0)}function esc(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;')}function label(s){return String(s).replaceAll('_',' ').replace(/\b\w/g,x=>x.toUpperCase())}function toast(m){toastEl.textContent=m;toastEl.classList.add('show');clearTimeout(window.tt);window.tt=setTimeout(()=>toastEl.classList.remove('show'),2400)}
 function card(a,b,c,i){return `<div class="card"><div class="card-top"><span class="label">${a}</span><div class="icon">${i}</div></div><div class="value">${b}</div><div class="note">${c}</div></div>`}
 async function dashboard(){conn('wait');app.innerHTML=`<div class="hero"><div><div class="eyebrow" style="color:#8de2bd">NUWIL • FROZEN & SEAFOOD</div><h2>Kontrol usaha dalam satu layar</h2><p>Pengadaan bahan baku, inventory, processing, produksi frozen, supply ke TOKA, sampai kontrol keuangan NUWIL.</p><div class="pills"><span class="pill">✓ Inventory</span><span class="pill">✓ Lot Tracking</span><span class="pill">✓ Supply TOKA</span></div></div><img class="hero-logo" src="${LOGO}" alt="NUWIL"></div><div class="panel empty">Memuat data dashboard...</div>`;try{const j=await get({action:'dashboard'}),d=j.data||{};conn('on');app.innerHTML=`<div class="cards">${card('Kas',money(d.cash),'Saldo kas','Rp')}${card('Nilai Inventory',money(d.inventoryValue),'Modal di persediaan','▦')}${card('Supply Toka',money(d.supplyThisMonth),'Bulan berjalan','→')}${card('Lot Aktif',num(d.activeLots),'Lot tercatat','□')}</div><div class="grid"><div class="panel"><div class="panel-head"><div><div class="panel-title">Ringkasan Operasional</div><div class="panel-sub">Angka utama NUWIL dari database.</div></div></div><div class="rows"><div class="row"><span>Kas</span><b>${money(d.cash)}</b></div><div class="row"><span>Nilai inventory</span><b>${money(d.inventoryValue)}</b></div><div class="row"><span>Supply Toka bulan ini</span><b>${money(d.supplyThisMonth)}</b></div><div class="row"><span>Batch produksi</span><b>${num(d.productionBatches)}</b></div></div></div><div class="panel"><div class="panel-head"><div><div class="panel-title">Akses Cepat</div><div class="panel-sub">Menu operasional utama.</div></div></div><div class="quick"><button onclick="go('inventory')"><b>Inventory</b><span>Lihat stok dan lot.</span></button><button onclick="go('purchases')"><b>Pembelian</b><span>Catat bahan masuk.</span></button><button onclick="go('products')"><b>Produk</b><span>Kelola master produk.</span></button><button onclick="go('categories')"><b>Kategori</b><span>Kelola kategori.</span></button></div></div></div>`}catch(e){conn('off');app.innerHTML=`<div class="error">${esc(e.message)}</div>`}}
-async function inventory(){conn('wait');app.innerHTML='<div class="panel empty">Memuat inventory...</div>';try{const j=await get({action:'list',table:'LOT',limit:300}),rows=j.data||[];conn('on');app.innerHTML=`<div class="toolbar"><input class="search" id="q" placeholder="Cari lot atau product ID..."><span class="subtitle">${rows.length} lot</span></div><div class="tablebox"><table><thead><tr><th>Lot</th><th>Product ID</th><th>Qty</th><th>Unit</th><th>HPP</th><th>Nilai</th><th>Status</th></tr></thead><tbody id="tb"></tbody></table></div>`;const draw=()=>{const q=(document.getElementById('q').value||'').toLowerCase(),rr=rows.filter(x=>JSON.stringify(x).toLowerCase().includes(q));document.getElementById('tb').innerHTML=rr.length?rr.map(x=>`<tr><td>${esc(x.lot_code)}</td><td>${esc(x.product_id)}</td><td>${num(x.qty_current)}</td><td>${esc(x.unit_id)}</td><td>${money(x.unit_cost)}</td><td>${money((Number(x.qty_current)||0)*(Number(x.unit_cost)||0))}</td><td><span class="badge">${esc(x.status||'-')}</span></td></tr>`).join(''):'<tr><td colspan="7" class="empty">Belum ada lot.</td></tr>'};draw();document.getElementById('q').oninput=draw}catch(e){conn('off');app.innerHTML=`<div class="error">${esc(e.message)}</div>`}}
-async function master(page){const c=masters[page];conn('wait');app.innerHTML='<div class="panel empty">Memuat data...</div>';try{const j=await get({action:'list',table:c.table,limit:300}),rows=j.data||[];conn('on');app.innerHTML=`<div class="toolbar"><input class="search" id="q" placeholder="Cari ${c.label.toLowerCase()}..."><button class="btn primary" onclick="openForm('${page}')">+ Tambah ${c.label}</button></div><div class="tablebox"><table><thead><tr>${c.cols.map(x=>`<th>${label(x)}</th>`).join('')}<th>Aksi</th></tr></thead><tbody id="tb"></tbody></table></div>`;const draw=()=>{const q=(document.getElementById('q').value||'').toLowerCase(),rr=rows.filter(x=>JSON.stringify(x).toLowerCase().includes(q));document.getElementById('tb').innerHTML=rr.length?rr.map(x=>`<tr>${c.cols.map(k=>`<td>${k==='status'?`<span class="badge">${esc(x[k]||'-')}</span>`:esc(x[k]??'')}</td>`).join('')}<td><button class="btn soft" onclick="toast('Edit akan kita aktifkan setelah alur master stabil')">Edit</button></td></tr>`).join(''):`<tr><td colspan="${c.cols.length+1}" class="empty">Belum ada data.</td></tr>`};draw();document.getElementById('q').oninput=draw}catch(e){conn('off');app.innerHTML=`<div class="error">${esc(e.message)}</div>`}}
+async function inventory(){conn('wait');app.innerHTML='<div class="panel empty">Memuat inventory...</div>';try{const j=await get({action:'list',table:'LOT',limit:300}),rows=j.data?.rows||[];conn('on');app.innerHTML=`<div class="toolbar"><input class="search" id="q" placeholder="Cari lot atau product ID..."><span class="subtitle">${rows.length} lot</span></div><div class="tablebox"><table><thead><tr><th>Lot</th><th>Product ID</th><th>Qty</th><th>Unit</th><th>HPP</th><th>Nilai</th><th>Status</th></tr></thead><tbody id="tb"></tbody></table></div>`;const draw=()=>{const q=(document.getElementById('q').value||'').toLowerCase(),rr=rows.filter(x=>JSON.stringify(x).toLowerCase().includes(q));document.getElementById('tb').innerHTML=rr.length?rr.map(x=>`<tr><td>${esc(x.lot_code)}</td><td>${esc(x.product_id)}</td><td>${num(x.qty_current)}</td><td>${esc(x.unit_id)}</td><td>${money(x.unit_cost)}</td><td>${money((Number(x.qty_current)||0)*(Number(x.unit_cost)||0))}</td><td><span class="badge">${esc(x.status||'-')}</span></td></tr>`).join(''):'<tr><td colspan="7" class="empty">Belum ada lot.</td></tr>'};draw();document.getElementById('q').oninput=draw}catch(e){conn('off');app.innerHTML=`<div class="error">${esc(e.message)}</div>`}}
+async function master(page){const c=masters[page];conn('wait');app.innerHTML='<div class="panel empty">Memuat data...</div>';try{const j=await get({action:'list',table:c.table,limit:300}),rows=j.data?.rows||[];conn('on');app.innerHTML=`<div class="toolbar"><input class="search" id="q" placeholder="Cari ${c.label.toLowerCase()}..."><button class="btn primary" onclick="openForm('${page}')">+ Tambah ${c.label}</button></div><div class="tablebox"><table><thead><tr>${c.cols.map(x=>`<th>${label(x)}</th>`).join('')}<th>Aksi</th></tr></thead><tbody id="tb"></tbody></table></div>`;const draw=()=>{const q=(document.getElementById('q').value||'').toLowerCase(),rr=rows.filter(x=>JSON.stringify(x).toLowerCase().includes(q));document.getElementById('tb').innerHTML=rr.length?rr.map(x=>`<tr>${c.cols.map(k=>`<td>${k==='status'?`<span class="badge">${esc(x[k]||'-')}</span>`:esc(x[k]??'')}</td>`).join('')}<td><button class="btn soft" onclick="toast('Edit akan kita aktifkan setelah alur master stabil')">Edit</button></td></tr>`).join(''):`<tr><td colspan="${c.cols.length+1}" class="empty">Belum ada data.</td></tr>`};draw();document.getElementById('q').oninput=draw}catch(e){conn('off');app.innerHTML=`<div class="error">${esc(e.message)}</div>`}}
 function openForm(page){
   if(page==='suppliers'){
     return supplierForm();
@@ -111,7 +152,7 @@ const cache={};
 async function loadMasterRows(table){
   if(cache[table]) return cache[table];
   const j=await get({action:'list',table,limit:500});
-  cache[table]=j.data||[];
+  cache[table]=j.data?.rows||[];
   return cache[table];
 }
 function humanCode(prefix){
@@ -123,7 +164,7 @@ function selectOptions(rows,valueField,labelFn,empty='Pilih...'){
 }
 async function loadAvailableLots(products=[]){
   const j=await get({action:'list',table:'LOT',limit:1000});
-  const rows=(j.data||[]).filter(x=>Number(x.qty_current||0)>0);
+  const rows=(j.data?.rows||[]).filter(x=>Number(x.qty_current||0)>0);
   const pm=Object.fromEntries(products.map(x=>[x.id,x]));
   return rows.map(x=>({...x,product_name:pm[x.product_id]?.name||x.product_id||'Produk'}));
 }
@@ -278,23 +319,8 @@ async function purchaseForm(){
         const lotCode=`${lotPrefix}-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${String(Date.now()).slice(-3)}`;
 
         try{
-          const h=await post({action:'create',table:'PURCHASE',data:{
-            purchase_code:code,supplier_id:supplier,purchase_date:document.getElementById('f_purchase_date').value,
-            invoice_qty:qtyInvoice,actual_qty:qtyActual,unit_id:unit,total_amount:landedCost,
-            payment_status:document.getElementById('f_payment_status').value,notes:finalNotes
-          }});
-
-          const lot=await post({action:'create',table:'LOT',data:{
-            lot_code:lotCode,product_id:product,source_type:'PURCHASE',source_ref:h.data?.id||h.id||code,
-            qty_in:qtyActual,qty_current:qtyActual,unit_id:unit,unit_cost:landedUnitCost,
-            total_cost:landedCost,received_at:document.getElementById('f_purchase_date').value,status:'ACTIVE',parent_lot_id:''
-          }});
-
-          await post({action:'create',table:'PURCHASE_DETAIL',data:{
-            purchase_id:h.data?.id||h.id||code,product_id:product,qty_invoice:qtyInvoice,qty_actual:qtyActual,
-            unit_id:unit,unit_price:price,total_cost:landedCost,lot_id:lot.data?.id||lot.id||''
-          }});
-
+          const totalCost=landedCost;
+          const h=await post({action:'create_purchase',supplier_id:supplier,produk_id:product,satuan_id:unit,qty:qtyActual,harga:landedUnitCost,status_pembayaran:document.getElementById('f_payment_status').value==='PAID'?'Lunas':document.getElementById('f_payment_status').value==='PARTIAL'?'Sebagian':'Belum Lunas',jumlah_dibayar:document.getElementById('f_payment_status').value==='PAID'?totalCost:0,catatan:finalNotes,request_id:humanCode('REQ')});
           closeModal();toast(`Pembelian ${code} tersimpan • Lot ${lotCode}`);modulePage('purchases');
         }catch(e){toast(e.message)}
       });
@@ -475,7 +501,7 @@ async function modulePage(page){
   if(page==='purchases'){
     app.innerHTML=`<div class="toolbar"><input class="search" id="q" placeholder="Cari nomor pembelian atau supplier..."><button class="btn primary" onclick="purchaseForm()">+ Pembelian Baru</button></div><div class="quick-note">Operator tidak perlu tahu ID pembelian, ID supplier, atau UUID. Semua nomor dibuat otomatis oleh sistem.</div><div class="tablebox"><table><thead><tr><th>No Pembelian</th><th>Tanggal</th><th>Supplier</th><th>Qty Aktual</th><th>Total</th><th>Pembayaran</th></tr></thead><tbody id="tb"><tr><td colspan="6" class="empty">Memuat...</td></tr></tbody></table></div>`;
     try{
-      const [rows,suppliers]=await Promise.all([get({action:'list',table:'PURCHASE',limit:300}).then(x=>x.data||[]),loadMasterRows('MST_SUPPLIER')]);
+      const [rows,suppliers]=await Promise.all([get({action:'list',table:'PURCHASE',limit:300}).then(x=>x.data?.rows||[]),loadMasterRows('MST_SUPPLIER')]);
       const sm=Object.fromEntries(suppliers.map(x=>[x.id,x.name]));
       const draw=()=>{const q=(document.getElementById('q').value||'').toLowerCase(),rr=rows.filter(x=>`${x.purchase_code||''} ${sm[x.supplier_id]||''}`.toLowerCase().includes(q));document.getElementById('tb').innerHTML=rr.length?rr.map(x=>`<tr><td><b>${esc(x.purchase_code||'-')}</b></td><td>${esc(x.purchase_date||'-')}</td><td>${esc(sm[x.supplier_id]||'Supplier')}</td><td>${num(x.actual_qty)} ${esc(x.unit_id||'')}</td><td>${money(x.total_amount)}</td><td><span class="badge">${esc(x.payment_status||'-')}</span></td></tr>`).join(''):'<tr><td colspan="6" class="empty">Belum ada pembelian.</td></tr>'};draw();document.getElementById('q').oninput=draw;
     }catch(e){app.innerHTML=`<div class="error">${esc(e.message)}</div>`}
