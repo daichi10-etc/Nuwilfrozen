@@ -195,8 +195,6 @@ async function purchaseForm(){
         ${fieldHTML('freight_cost','Ongkir / Biaya Angkut','number')}
         <div class="field full"><div class="quick-note" id="purchaseCostSummary">Nilai barang: Rp0<br>Ongkir: Rp0<br><b>Total modal lot: Rp0</b><br>HPP lot: Rp0 / satuan</div></div>
         ${fieldHTML('payment_status','Pembayaran','select','<option value="PAID">Lunas</option><option value="UNPAID">Belum Lunas</option><option value="PARTIAL">Sebagian</option>')}
-        ${fieldHTML('payment_account','Akun Pembayaran','select','<option value="">Pilih akun...</option><option value="CASH">Kas</option><option value="BANK">Bank</option>')}
-        ${fieldHTML('paid_amount','Nominal Dibayar (jika sebagian)','number')}
         ${fieldHTML('notes','Catatan','textarea')}
        </div>`,
       async()=>{
@@ -224,15 +222,24 @@ async function purchaseForm(){
         const lotCode=`${lotPrefix}-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${String(Date.now()).slice(-3)}`;
 
         try{
-          const paymentStatus=document.getElementById('f_payment_status').value;
-          const paidAmount=paymentStatus==='PAID'?landedCost:paymentStatus==='PARTIAL'?Number(document.getElementById('f_paid_amount')?.value||0):0;
-          const paymentAccountId=paidAmount>0?document.getElementById('f_payment_account').value:'';
-          await post({action:'create_purchase',data:{
+          const h=await post({action:'create',table:'PURCHASE',data:{
             purchase_code:code,supplier_id:supplier,purchase_date:document.getElementById('f_purchase_date').value,
-            product_id:product,invoice_qty:qtyInvoice,actual_qty:qtyActual,unit_id:unit,goods_cost:goodsCost,freight_cost:freight,
-            payment_status:paymentStatus,paid_amount:paidAmount,payment_account_id:paymentAccountId,notes:document.getElementById('f_notes').value.trim()
+            invoice_qty:qtyInvoice,actual_qty:qtyActual,unit_id:unit,total_amount:landedCost,
+            payment_status:document.getElementById('f_payment_status').value,notes:document.getElementById('f_notes').value.trim()
           }});
-          closeModal();toast(`Pembelian ${code} tersimpan • inventory & Finance otomatis`);modulePage('purchases');
+
+          const lot=await post({action:'create',table:'LOT',data:{
+            lot_code:lotCode,product_id:product,source_type:'PURCHASE',source_ref:h.data?.id||h.id||code,
+            qty_in:qtyActual,qty_current:qtyActual,unit_id:unit,unit_cost:landedUnitCost,
+            total_cost:landedCost,received_at:document.getElementById('f_purchase_date').value,status:'ACTIVE',parent_lot_id:''
+          }});
+
+          await post({action:'create',table:'PURCHASE_DETAIL',data:{
+            purchase_id:h.data?.id||h.id||code,product_id:product,qty_invoice:qtyInvoice,qty_actual:qtyActual,
+            unit_id:unit,unit_price:price,total_cost:landedCost,lot_id:lot.data?.id||lot.id||''
+          }});
+
+          closeModal();toast(`Pembelian ${code} tersimpan • Lot ${lotCode}`);modulePage('purchases');
         }catch(e){toast(e.message)}
       });
     document.getElementById('f_purchase_date').value=new Date().toISOString().slice(0,10);
@@ -273,7 +280,7 @@ async function genericOperationForm(page){
     processing:{title:'Sorting / Processing',note:'Pecah atau olah bahan dari lot yang sudah tersedia.',table:'PROCESSING'},
     production:{title:'Produksi Frozen',note:'Catat produksi berdasarkan bahan yang benar-benar dipakai dan hasil aktual.',table:'PRODUCTION'},
     supply:{title:'Supply ke TOKA',note:'TOKA sudah menjadi customer internal NUWIL. Karyawan cukup pilih produk dan jumlah.',table:'SUPPLY'},
-    finance:{title:'Transaksi Finance',note:'Dipakai hanya untuk transaksi manual yang belum berasal dari Pembelian atau Supply. Pembelian dan Supply sudah otomatis masuk Finance.',table:'FINANCE_TRANSACTION'}
+    finance:{title:'Transaksi Finance',note:'Pilih akun berdasarkan nama. ID akun tidak perlu diketahui karyawan.',table:'FINANCE_TRANSACTION'}
   };
   const c=configs[page];
   try{
@@ -305,22 +312,13 @@ async function genericOperationForm(page){
         <div class="prod-total panel"><div class="row"><span>Total HPP Batch</span><b id="prodTotal">Rp0</b></div><div class="row"><span>Total Output</span><b id="prodOutputTotal">0</b></div></div>
         ${fieldHTML('notes','Catatan','textarea')}`;
     }else if(page==='supply'){
-      const allLots=await loadMasterRows('LOT');
-      const activeLots=allLots.filter(x=>Number(x.qty_current||0)>0 && String(x.status||'ACTIVE').toUpperCase()!=='DEPLETED');
-      window.currentSupplyLots=activeLots;
-      const tokas=customers.filter(x=>String(x.code||'').toUpperCase()==='TOK-001'||String(x.name||'').toUpperCase()==='TOKA');
-      const productMap=Object.fromEntries(products.map(x=>[x.id,x]));
-      const lotOpts=selectOptions(activeLots,'id',x=>`${productMap[x.product_id]?.name||'Produk'} • ${x.lot_code||'-'} • Sisa ${num(x.qty_current||0)} ${x.unit_id||''}`,'Pilih lot...');
-      body=`<div class="quick-note"><b>Supply otomatis masuk Finance.</b><br>Stok berkurang otomatis, HPP dihitung dari lot, penjualan dicatat, dan pembayaran masuk Kas/Bank atau Piutang TOKA. Jangan input Finance kedua kali.</div><div class="form">
+      body=`<div class="quick-note">${c.note}</div><div class="form">
         ${fieldHTML('supply_date','Tanggal','date')}
-        ${fieldHTML('customer','Customer','select',selectOptions(tokas,'id',x=>x.name,'TOKA'))}
-        ${fieldHTML('supply_lot','Lot Produk','select',lotOpts)}
-        ${fieldHTML('supply_qty','Qty','number')}
-        ${fieldHTML('supply_unit_price','Harga Jual / Satuan','number')}
-        <div class="field full"><div class="quick-note" id="supplyCostSummary">Pilih lot untuk melihat HPP.</div></div>
-        ${fieldHTML('supply_payment_status','Pembayaran','select','<option value="PAID">Lunas</option><option value="UNPAID">Belum Lunas</option><option value="PARTIAL">Sebagian</option>')}
-        ${fieldHTML('supply_payment_account','Akun Penerimaan','select','<option value="">Pilih akun...</option><option value="CASH">Kas</option><option value="BANK">Bank</option>')}
-        ${fieldHTML('supply_paid_amount','Nominal Diterima (jika sebagian)','number')}
+        ${fieldHTML('customer','Customer','select',selectOptions(customers,'id',x=>x.name,'Pilih customer...'))}
+        ${fieldHTML('product','Produk','select',selectOptions(products,'id',x=>x.name,'Pilih produk...'))}
+        ${fieldHTML('qty','Qty','number')}
+        ${fieldHTML('unit_price','Harga Jual','number')}
+        ${fieldHTML('payment_status','Pembayaran','select','<option value="PAID">Lunas</option><option value="UNPAID">Belum Lunas</option><option value="PARTIAL">Sebagian</option>')}
         ${fieldHTML('notes','Catatan','textarea')}
       </div>`;
     }else{
@@ -355,27 +353,19 @@ async function genericOperationForm(page){
         ${fieldHTML('notes','Catatan','textarea')}`;
     }else if(page==='supply'){
           const code=humanCode('SUPPLY');
-          const lotId=document.getElementById('f_supply_lot').value;
-          const lot=(window.currentSupplyLots||[]).find(x=>x.id===lotId);
-          const qty=Number(document.getElementById('f_supply_qty').value||0),price=Number(document.getElementById('f_supply_unit_price').value||0);
-          const paymentStatus=document.getElementById('f_supply_payment_status').value;
-          const revenue=qty*price;
-          const paidAmount=paymentStatus==='PAID'?revenue:paymentStatus==='PARTIAL'?Number(document.getElementById('f_supply_paid_amount').value||0):0;
-          const paymentAccountId=paidAmount>0?document.getElementById('f_supply_payment_account').value:'';
-          if(!lotId||!lot||qty<=0||price<=0){toast('Lot, qty, dan harga jual wajib diisi');return}
-          await post({action:'create_supply',data:{supply_code:code,supply_date:document.getElementById('f_supply_date').value,customer_id:document.getElementById('f_customer').value,lot_id:lotId,product_id:lot.product_id,unit_id:lot.unit_id,qty:qty,unit_price:price,payment_status:paymentStatus,paid_amount:paidAmount,payment_account_id:paymentAccountId,notes:document.getElementById('f_notes').value.trim()}});
+          const qty=Number(document.getElementById('f_qty').value||0),price=Number(document.getElementById('f_unit_price').value||0);
+          data={supply_code:code,supply_date:document.getElementById('f_supply_date').value,customer_id:document.getElementById('f_customer').value,total_amount:qty*price,total_cost:0,gross_profit:qty*price,payment_status:document.getElementById('f_payment_status').value,payment_account_id:'',notes:document.getElementById('f_notes').value.trim()};
         }else{
           data={transaction_code:humanCode('TRX'),transaction_date:document.getElementById('f_transaction_date').value,transaction_type:document.getElementById('f_transaction_type').value,account_id:document.getElementById('f_account').value,amount:Number(document.getElementById('f_amount').value||0),direction:document.getElementById('f_direction').value,description:document.getElementById('f_description').value.trim()};
-          await post({action:'create',table:c.table,data});
         }
-        closeModal();toast(page==='supply'?'Supply tersimpan • stok & Finance otomatis':'Data tersimpan');modulePage(page);
+        await post({action:'create',table:c.table,data});
+        closeModal();toast('Data tersimpan');modulePage(page);
       }catch(e){toast(e.message)}
     });
     if(document.getElementById('f_production_date'))document.getElementById('f_production_date').value=new Date().toISOString().slice(0,10);
     if(document.getElementById('f_processing_date'))document.getElementById('f_processing_date').value=new Date().toISOString().slice(0,10);
     if(document.getElementById('f_supply_date'))document.getElementById('f_supply_date').value=new Date().toISOString().slice(0,10);
     if(document.getElementById('f_transaction_date'))document.getElementById('f_transaction_date').value=new Date().toISOString().slice(0,10);
-    if(page==='supply'){const sel=document.getElementById('f_supply_lot'),qtyEl=document.getElementById('f_supply_qty'),priceEl=document.getElementById('f_supply_unit_price'),sumEl=document.getElementById('supplyCostSummary');const sync=()=>{const lot=(window.currentSupplyLots||[]).find(x=>x.id===sel?.value);const qty=Number(qtyEl?.value||0),price=Number(priceEl?.value||0);if(lot){sumEl.innerHTML=`HPP: <b>${money(qty*Number(lot.unit_cost||0))}</b><br>Penjualan: <b>${money(qty*price)}</b><br>Stok tersedia: <b>${num(lot.qty_current)} ${esc(lot.unit_id||'')}</b>`;qtyEl.max=Number(lot.qty_current||0)}else sumEl.textContent='Pilih lot untuk melihat HPP.'};[sel,qtyEl,priceEl].forEach(el=>el&&el.addEventListener('input',sync));if(sel)sel.addEventListener('change',sync);sync()}
     if(page==='production'){ addProdInput(); addProdOutput(); }
   }catch(e){toast(e.message)}
 }
@@ -435,11 +425,34 @@ async function modulePage(page){
     }catch(e){app.innerHTML=`<div class="error">${esc(e.message)}</div>`}
     return;
   }
-  if(page==='supply'){
-    app.innerHTML=`<div class="toolbar"><input class="search" id="q" placeholder="Cari nomor supply..."><button class="btn primary" onclick="genericOperationForm('supply')">+ Supply ke TOKA</button></div><div class="quick-note">Supply otomatis mengurangi stok, menghitung HPP, mencatat penjualan, dan masuk Finance. Tidak perlu input Finance kedua kali.</div><div class="tablebox"><table><thead><tr><th>No Supply</th><th>Tanggal</th><th>Customer</th><th>Penjualan</th><th>HPP</th><th>Laba Kotor</th><th>Pembayaran</th></tr></thead><tbody id="tb"><tr><td colspan="7" class="empty">Memuat...</td></tr></tbody></table></div>`;
-    try{const [rows,customers]=await Promise.all([get({action:'list',table:'SUPPLY',limit:300}).then(x=>x.data||[]),loadMasterRows('MST_CUSTOMER')]);const cm=Object.fromEntries(customers.map(x=>[x.id,x.name]));const draw=()=>{const q=(document.getElementById('q').value||'').toLowerCase(),rr=rows.filter(x=>`${x.supply_code||''} ${cm[x.customer_id]||''}`.toLowerCase().includes(q));document.getElementById('tb').innerHTML=rr.length?rr.map(x=>`<tr><td><b>${esc(x.supply_code||'-')}</b></td><td>${esc(x.supply_date||'-')}</td><td>${esc(cm[x.customer_id]||'TOKA')}</td><td>${money(x.total_amount)}</td><td>${money(x.total_cost)}</td><td>${money(x.gross_profit)}</td><td><span class="badge">${esc(x.payment_status||'-')}</span></td></tr>`).join(''):'<tr><td colspan="7" class="empty">Belum ada supply.</td></tr>'};draw();document.getElementById('q').oninput=draw}catch(e){app.innerHTML=`<div class="error">${esc(e.message)}</div>`};return;
+  if(page==='finance'){
+    app.innerHTML=`<div class="toolbar"><input class="search" id="qFinance" placeholder="Cari transaksi, nomor, akun, atau keterangan..."><button class="btn primary" onclick="genericOperationForm('finance')">+ Input Finance Manual</button></div>
+      <div class="quick-note"><b>Finance otomatis.</b> Pembelian dan supply yang diproses lewat sistem akan muncul di sini. Input manual hanya untuk transaksi yang memang tidak berasal dari Pembelian / Supply.</div>
+      <div class="cards" id="financeCards"><div class="card"><div class="label">Memuat</div><div class="value">...</div></div><div class="card"><div class="label">Memuat</div><div class="value">...</div></div><div class="card"><div class="label">Memuat</div><div class="value">...</div></div><div class="card"><div class="label">Memuat</div><div class="value">...</div></div></div>
+      <div class="grid">
+        <div class="panel"><div class="panel-head"><div><div class="panel-title">Riwayat Arus Kas</div><div class="panel-sub">Kas / bank yang benar-benar masuk atau keluar.</div></div></div><div class="tablebox"><table><thead><tr><th>Tanggal</th><th>No Transaksi</th><th>Jenis</th><th>Akun</th><th>Keterangan</th><th>Arus</th><th>Nominal</th></tr></thead><tbody id="financeTb"><tr><td colspan="7" class="empty">Memuat...</td></tr></tbody></table></div></div>
+        <div class="panel"><div class="panel-head"><div><div class="panel-title">Jurnal Finance</div><div class="panel-sub">Ringkasan debit / kredit yang dibuat sistem.</div></div></div><div class="tablebox"><table><thead><tr><th>Tanggal</th><th>Akun</th><th>Debit</th><th>Kredit</th><th>Keterangan</th></tr></thead><tbody id="financeLedgerTb"><tr><td colspan="5" class="empty">Memuat...</td></tr></tbody></table></div></div>
+      </div>`;
+    try{
+      const [txRes,ledgerRes,accounts]=await Promise.all([get({action:'list',table:'FINANCE_TRANSACTION',limit:500}),get({action:'list',table:'FINANCE_LEDGER',limit:1000}),loadMasterRows('MST_ACCOUNT')]);
+      const tx=txRes.data||[], ledger=ledgerRes.data||[], am=Object.fromEntries(accounts.map(x=>[x.id,x.name||x.code||'Akun']));
+      const cashIn=tx.filter(x=>String(x.direction||'').toUpperCase()==='IN').reduce((a,x)=>a+Number(x.amount||0),0);
+      const cashOut=tx.filter(x=>String(x.direction||'').toUpperCase()==='OUT').reduce((a,x)=>a+Number(x.amount||0),0);
+      const net=cashIn-cashOut;
+      const journalCount=ledger.length;
+      document.getElementById('financeCards').innerHTML=`<div class="card"><div class="card-top"><span class="label">Total Masuk</span><span class="icon">↑</span></div><div class="value">${money(cashIn)}</div><div class="note">Dari transaksi cash / bank</div></div><div class="card"><div class="card-top"><span class="label">Total Keluar</span><span class="icon">↓</span></div><div class="value">${money(cashOut)}</div><div class="note">Pembayaran / pengeluaran aktual</div></div><div class="card"><div class="card-top"><span class="label">Arus Bersih</span><span class="icon">=</span></div><div class="value">${money(net)}</div><div class="note">Masuk dikurangi keluar</div></div><div class="card"><div class="card-top"><span class="label">Jurnal</span><span class="icon">#</span></div><div class="value">${num(journalCount)}</div><div class="note">Baris jurnal sistem</div></div>`;
+      const draw=()=>{
+        const q=(document.getElementById('qFinance').value||'').toLowerCase();
+        const rr=tx.filter(x=>`${x.transaction_date||''} ${x.transaction_code||''} ${x.transaction_type||''} ${am[x.account_id]||''} ${x.description||''} ${x.direction||''}`.toLowerCase().includes(q));
+        document.getElementById('financeTb').innerHTML=rr.length?rr.map(x=>`<tr><td>${esc(x.transaction_date||'-')}</td><td><b>${esc(x.transaction_code||'-')}</b></td><td>${esc(x.transaction_type||'-')}</td><td>${esc(am[x.account_id]||x.account_id||'-')}</td><td>${esc(x.description||'-')}</td><td><span class="badge" style="background:${String(x.direction||'').toUpperCase()==='OUT'?'#fff0ed':'#e9f7f0'};color:${String(x.direction||'').toUpperCase()==='OUT'?'#b42318':'#12845d'}">${esc(x.direction||'-')}</span></td><td><b>${money(x.amount)}</b></td></tr>`).join(''):'<tr><td colspan="7" class="empty">Belum ada transaksi arus kas.</td></tr>';
+        const ll=ledger.filter(x=>`${x.ledger_date||''} ${am[x.account_id]||''} ${x.description||''} ${x.reference_type||''} ${x.reference_id||''}`.toLowerCase().includes(q));
+        document.getElementById('financeLedgerTb').innerHTML=ll.length?ll.map(x=>`<tr><td>${esc(x.ledger_date||'-')}</td><td>${esc(am[x.account_id]||x.account_id||'-')}</td><td>${money(x.debit)}</td><td>${money(x.credit)}</td><td>${esc(x.description||x.reference_type||'-')}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">Belum ada jurnal.</td></tr>';
+      };
+      draw(); document.getElementById('qFinance').oninput=draw;
+    }catch(e){app.innerHTML=`<div class="error">${esc(e.message)}</div>`}
+    return;
   }
-  if(['processing','production','finance'].includes(page)){
+  if(['processing','production','supply'].includes(page)){
     app.innerHTML=`<div class="toolbar"><div></div><button class="btn primary" onclick="genericOperationForm('${page}')">+ Input ${pages[page][0]}</button></div><div class="quick-note">Tampilan ini sengaja dibuat sederhana untuk karyawan. Detail ID, UUID, dan relasi database dikelola sistem di belakang layar.</div><div class="panel empty">Belum ada tampilan riwayat yang diaktifkan pada layar ini. Gunakan tombol input untuk mencatat transaksi.</div>`;
     return;
   }
