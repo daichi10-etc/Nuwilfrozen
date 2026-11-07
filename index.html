@@ -89,13 +89,14 @@ const masters={products:{table:'MST_PRODUCT',label:'Produk',cols:['code','name',
 document.getElementById('today').textContent=new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'long',year:'numeric'}).format(new Date());
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.page));document.getElementById('mobileBtn').onclick=()=>document.getElementById('sidebar').classList.toggle('open');
 const TABLE_MAP={
-  MST_SUPPLIER:'SUPPLIER',MST_PRODUCT:'PRODUK',MST_CUSTOMER:'PELANGGAN',MST_UNIT:'SATUAN',
+  MST_CATEGORY:'KATEGORI',MST_SUPPLIER:'SUPPLIER',MST_PRODUCT:'PRODUK',MST_CUSTOMER:'PELANGGAN',MST_UNIT:'SATUAN',
   PURCHASE:'PEMBELIAN',PURCHASE_DETAIL:'DETAIL_PEMBELIAN',LOT:'STOK',STOCK_MOVEMENT:'MUTASI_STOK',
   SUPPLY:'SUPPLY_TOKA',SUPPLY_DETAIL:'DETAIL_SUPPLY_TOKA',FINANCE_TRANSACTION:'TRANSAKSI_KEUANGAN',
   FINANCE_LEDGER:'JURNAL_KEUANGAN',MST_ACCOUNT:'AKUN_KEUANGAN'
 };
 function normalizeRow(table,r){
   if(!r)return r;
+  if(table==='KATEGORI')return {...r,code:r.kode,name:r.nama_kategori,type:r.tipe,status:r.status};
   if(table==='SUPPLIER')return {...r,code:r.kode,name:r.nama_supplier,phone:r.telepon,address:r.alamat};
   if(table==='PRODUK')return {...r,code:r.kode,name:r.nama_produk,product_type:r.jenis,min_stock:r.stok_minimum,status:r.status};
   if(table==='PELANGGAN')return {...r,code:r.kode,name:r.nama_pelanggan,customer_type:r.jenis,status:r.status};
@@ -116,7 +117,8 @@ async function post(p){
   const x={...p,data:{...(p.data||{})}};
   if(p.action==='create'&&p.table){
     const t=legacyTable(p.table),d=x.data;
-    if(t==='SUPPLIER'){x.action='create_supplier';x.nama_supplier=d.name;x.telepon=d.phone;x.alamat=d.address;delete x.data}
+    if(t==='KATEGORI'){x.action='create_category';x.nama_kategori=d.name;x.tipe=d.type||'Produk';delete x.data}
+    else if(t==='SUPPLIER'){x.action='create_supplier';x.nama_supplier=d.name;x.telepon=d.phone;x.alamat=d.address;delete x.data}
     else if(t==='PRODUK'){x.action='create_product';x.nama_produk=d.name;x.kategori=d.category_id||d.category||'';x.satuan=d.unit_id||d.unit||'';x.jenis=d.product_type||'Bahan Baku';x.stok_minimum=d.min_stock||0;delete x.data}
     else if(t==='PELANGGAN'){x.action='create_customer';x.nama_pelanggan=d.name;x.jenis=d.customer_type||'Eksternal';delete x.data}
     else if(t==='SATUAN'){x.action='create_unit';x.nama_satuan=d.name;x.desimal=d.decimals||0;delete x.data}
